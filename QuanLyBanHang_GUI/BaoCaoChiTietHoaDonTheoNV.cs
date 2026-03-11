@@ -1,0 +1,307 @@
+using QuanLyBanHang_DAL;
+using System;
+using System.Data;
+using System.Data.SqlClient;
+using System.Drawing;
+using System.Windows.Forms;
+
+namespace QuanLyBanHang_GUI
+{
+    /// <summary>
+    /// Báo cáo: Chi tiết hóa đơn theo nhân viên.
+    /// Layout Master/Detail: Lưới trên = danh sách HĐ của NV,
+    /// Lưới dưới = chi tiết sản phẩm của HĐ đang chọn.
+    /// </summary>
+    public partial class BaoCaoChiTietHoaDonTheoNV : Form
+    {
+        ComboBox cboNV;
+        DataGridView dgvHD;     // master: danh sách hóa đơn
+        DataGridView dgvCT;     // detail: chi tiết sản phẩm
+        Label lblTongHD, lblTongCT;
+        Label lblTenHD;         // nhãn tiêu đề panel detail
+
+        static readonly Color NavBlue   = Color.FromArgb(30, 55, 100);
+        static readonly Color BgGray    = Color.FromArgb(245, 246, 250);
+        static readonly Color InputBg   = Color.FromArgb(242, 246, 255);
+        static readonly Color BorderCol = Color.FromArgb(208, 214, 228);
+        static readonly Color DetailHdr = Color.FromArgb(50, 80, 130);
+
+        public BaoCaoChiTietHoaDonTheoNV()
+        {
+            BuildUI();
+            LoadComboNV();
+            LoadHD();
+        }
+
+        void BuildUI()
+        {
+            this.Text = "Chi Tiết Hóa Đơn theo Nhân Viên";
+            this.ClientSize = new Size(1060, 660);
+            this.MinimumSize = new Size(860, 540);
+            this.StartPosition = FormStartPosition.CenterScreen;
+            this.BackColor = BgGray;
+            this.FormBorderStyle = FormBorderStyle.Sizable;
+
+            // ── Header ──────────────────────────────────────
+            var pnlHeader = new Panel { BackColor = NavBlue, Dock = DockStyle.Top, Height = 52 };
+            pnlHeader.Controls.Add(new Label
+            {
+                Dock = DockStyle.Fill, Text = "CHI TIẾT HÓA ĐƠN THEO NHÂN VIÊN",
+                Font = new Font("Segoe UI Semibold", 13.5F, FontStyle.Bold),
+                ForeColor = Color.White, TextAlign = ContentAlignment.MiddleCenter
+            });
+
+            // ── Filter ──────────────────────────────────────
+            var pnlFilter = new Panel
+            {
+                BackColor = InputBg, Dock = DockStyle.Top, Height = 56,
+                Padding = new Padding(14, 10, 14, 8)
+            };
+            pnlFilter.Paint += (s, e) =>
+                e.Graphics.DrawLine(new Pen(BorderCol), 0, pnlFilter.Height - 1, pnlFilter.Width, pnlFilter.Height - 1);
+
+            Lbl(pnlFilter, "Nhân Viên:", 14, 14);
+            cboNV = new ComboBox
+            {
+                Location = new Point(100, 11), Size = new Size(280, 26),
+                Font = new Font("Segoe UI", 9.5F), DropDownStyle = ComboBoxStyle.DropDownList
+            };
+            cboNV.SelectedIndexChanged += (s, e) => LoadHD();
+            pnlFilter.Controls.Add(cboNV);
+
+            var btnReload = MakeBtn("Tải lại", Color.FromArgb(85, 110, 155));
+            btnReload.Location = new Point(394, 10);
+            btnReload.Click += (s, e) => { LoadComboNV(); LoadHD(); };
+            pnlFilter.Controls.Add(btnReload);
+
+            // ── Footer ──────────────────────────────────────
+            var pnlFooter = new Panel { BackColor = Color.FromArgb(232, 236, 244), Dock = DockStyle.Bottom, Height = 42 };
+            pnlFooter.Paint += (s, e) =>
+                e.Graphics.DrawLine(new Pen(BorderCol), 0, 0, pnlFooter.Width, 0);
+
+            lblTongHD = new Label
+            {
+                Dock = DockStyle.Left, Width = 600,
+                Font = new Font("Segoe UI", 9F), ForeColor = Color.FromArgb(40, 60, 100),
+                TextAlign = ContentAlignment.MiddleLeft, Padding = new Padding(14, 0, 0, 0)
+            };
+            var btnTroVe = MakeBtn("Trở Về", Color.White);
+            btnTroVe.ForeColor = Color.FromArgb(48, 62, 90);
+            btnTroVe.FlatAppearance.BorderColor = Color.FromArgb(175, 188, 212);
+            btnTroVe.FlatAppearance.BorderSize = 1;
+            btnTroVe.Dock = DockStyle.Right; btnTroVe.Width = 96;
+            btnTroVe.Click += (s, e) => this.Close();
+            pnlFooter.Controls.Add(lblTongHD);
+            pnlFooter.Controls.Add(btnTroVe);
+
+            // ── Splitter area — Fill ─────────────────────────
+            var pnlBody = new Panel { Dock = DockStyle.Fill, BackColor = BgGray };
+
+            // Detail panel (bottom)
+            var pnlDetail = new Panel { Dock = DockStyle.Bottom, Height = 230, BackColor = BgGray };
+            pnlDetail.Paint += (s, e) =>
+                e.Graphics.DrawLine(new Pen(NavBlue, 2), 0, 0, pnlDetail.Width, 0);
+
+            // Header của detail panel
+            var pnlDetailHdr = new Panel { Dock = DockStyle.Top, Height = 34, BackColor = DetailHdr };
+            lblTenHD = new Label
+            {
+                Dock = DockStyle.Fill,
+                Text = "Chi Tiết Sản Phẩm — (chọn hóa đơn ở trên)",
+                Font = new Font("Segoe UI Semibold", 10F, FontStyle.Bold),
+                ForeColor = Color.White, TextAlign = ContentAlignment.MiddleLeft,
+                Padding = new Padding(12, 0, 0, 0)
+            };
+            lblTongCT = new Label
+            {
+                Dock = DockStyle.Right, Width = 240,
+                Font = new Font("Segoe UI", 9F), ForeColor = Color.FromArgb(190, 215, 255),
+                TextAlign = ContentAlignment.MiddleRight, Padding = new Padding(0, 0, 12, 0)
+            };
+            pnlDetailHdr.Controls.Add(lblTenHD);
+            pnlDetailHdr.Controls.Add(lblTongCT);
+
+            dgvCT = BuildGrid(rowHeight: 32);
+            var pnlCTGrid = new Panel { Dock = DockStyle.Fill, Padding = new Padding(14, 6, 14, 0), BackColor = BgGray };
+            pnlCTGrid.Controls.Add(dgvCT);
+
+            pnlDetail.Controls.Add(pnlCTGrid);
+            pnlDetail.Controls.Add(pnlDetailHdr);
+
+            // Master grid (top)
+            var pnlMaster = new Panel { Dock = DockStyle.Fill, Padding = new Padding(14, 10, 14, 4), BackColor = BgGray };
+            dgvHD = BuildGrid(rowHeight: 34);
+            dgvHD.CellClick += DgvHD_CellClick;
+            pnlMaster.Controls.Add(dgvHD);
+
+            // Splitter
+            var splitter = new Splitter { Dock = DockStyle.Bottom, Height = 5, BackColor = Color.FromArgb(210, 218, 235) };
+
+            pnlBody.Controls.Add(pnlMaster);
+            pnlBody.Controls.Add(splitter);
+            pnlBody.Controls.Add(pnlDetail);
+
+            this.Controls.Add(pnlBody);
+            this.Controls.Add(pnlFooter);
+            this.Controls.Add(pnlFilter);
+            this.Controls.Add(pnlHeader);
+        }
+
+        void LoadComboNV()
+        {
+            using (var c = DBConnection.GetConnection())
+            {
+                var dt = new DataTable();
+                new SqlDataAdapter(
+                    "SELECT '' AS MaNV, N'-- Tất cả --' AS HT " +
+                    "UNION SELECT MaNV, MaNV+' — '+Ho+' '+Ten AS HT FROM NHANVIEN ORDER BY HT", c).Fill(dt);
+                cboNV.DataSource = dt;
+                cboNV.DisplayMember = "HT";
+                cboNV.ValueMember = "MaNV";
+            }
+        }
+
+        void LoadHD()
+        {
+            try
+            {
+                string ma = cboNV.SelectedValue?.ToString() ?? "";
+                string where = string.IsNullOrEmpty(ma) ? "" : "WHERE hd.MaNV = @ma";
+
+                using (var c = DBConnection.GetConnection())
+                {
+                    var sql = $@"
+                        SELECT hd.MaHD                                 AS [Mã HĐ],
+                               nv.Ho + ' ' + nv.Ten                   AS [Nhân Viên],
+                               kh.TenCty                               AS [Khách Hàng],
+                               CONVERT(VARCHAR, hd.NgayLapHD,   103)  AS [Ngày Lập],
+                               CONVERT(VARCHAR, hd.NgayNhanHang,103)  AS [Ngày Nhận],
+                               (SELECT COUNT(*) FROM CHITIETHOADON WHERE MaHD = hd.MaHD) AS [Số SP],
+                               FORMAT(ISNULL(
+                                   (SELECT SUM(ct.SoLuong * sp.DonGia)
+                                    FROM CHITIETHOADON ct
+                                    JOIN SANPHAM sp ON ct.MaSP = sp.MaSP
+                                    WHERE ct.MaHD = hd.MaHD), 0), N'N0') + N' đ'  AS [Tổng Tiền]
+                        FROM HOADON hd
+                        LEFT JOIN NHANVIEN  nv ON hd.MaNV = nv.MaNV
+                        LEFT JOIN KHACHHANG kh ON hd.MaKH = kh.MaKH
+                        {where}
+                        ORDER BY nv.Ho, nv.Ten, hd.MaHD";
+
+                    var cmd = new SqlCommand(sql, c);
+                    if (!string.IsNullOrEmpty(ma)) cmd.Parameters.AddWithValue("@ma", ma);
+
+                    var dt = new DataTable();
+                    new SqlDataAdapter(cmd).Fill(dt);
+                    dgvHD.DataSource = dt;
+                    lblTongHD.Text = $"  Tổng số hóa đơn: {dt.Rows.Count}";
+                }
+
+                // Reset detail
+                dgvCT.DataSource = null;
+                lblTenHD.Text = "Chi Tiết Sản Phẩm — (chọn hóa đơn ở trên)";
+                lblTongCT.Text = "";
+            }
+            catch (Exception ex) { FormHelper.ShowError(ex.Message); }
+        }
+
+        void DgvHD_CellClick(object s, DataGridViewCellEventArgs e)
+        {
+            if (e.RowIndex < 0) return;
+            string maHD = dgvHD.Rows[e.RowIndex].Cells[0].Value?.ToString();
+            LoadChiTiet(maHD);
+        }
+
+        void LoadChiTiet(string maHD)
+        {
+            if (string.IsNullOrEmpty(maHD)) return;
+            try
+            {
+                using (var c = DBConnection.GetConnection())
+                {
+                    var sql = @"
+                        SELECT sp.MaSP                                          AS [Mã SP],
+                               sp.TenSP                                         AS [Tên Sản Phẩm],
+                               sp.DonViTinh                                     AS [ĐVT],
+                               FORMAT(sp.DonGia, N'N0') + N' đ'                AS [Đơn Giá],
+                               ct.SoLuong                                       AS [Số Lượng],
+                               FORMAT(ct.SoLuong * sp.DonGia, N'N0') + N' đ'  AS [Thành Tiền]
+                        FROM CHITIETHOADON ct
+                        JOIN SANPHAM sp ON ct.MaSP = sp.MaSP
+                        WHERE ct.MaHD = @hd
+                        ORDER BY sp.TenSP";
+
+                    var cmd = new SqlCommand(sql, c);
+                    cmd.Parameters.AddWithValue("@hd", maHD);
+                    var dt = new DataTable();
+                    new SqlDataAdapter(cmd).Fill(dt);
+                    dgvCT.DataSource = dt;
+
+                    lblTenHD.Text = $"  Chi Tiết Sản Phẩm — Hóa Đơn: {maHD}";
+                    lblTongCT.Text = $"{dt.Rows.Count} sản phẩm  ";
+                }
+            }
+            catch (Exception ex) { FormHelper.ShowError(ex.Message); }
+        }
+
+        void Lbl(Panel p, string text, int x, int y) =>
+            p.Controls.Add(new Label
+            {
+                Text = text, Location = new Point(x, y), AutoSize = true,
+                Font = new Font("Segoe UI", 9F), ForeColor = Color.FromArgb(50, 70, 110)
+            });
+
+        DataGridView BuildGrid(int rowHeight = 32)
+        {
+            var g = new DataGridView();
+            FormHelper.StyleGrid(g);
+            g.Dock = DockStyle.Fill;
+            g.RowTemplate.Height = rowHeight;
+            return g;
+        }
+
+        Button MakeBtn(string text, Color bg)
+        {
+            var b = new Button
+            {
+                Text = text, Size = new Size(96, 34),
+                Font = new Font("Segoe UI", 9F), BackColor = bg,
+                ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Cursor = Cursors.Hand
+            };
+            b.FlatAppearance.BorderSize = 0;
+            
+            // Gán icon theo text
+            var iconMap = new System.Collections.Generic.Dictionary<string, IconType>
+            {
+                { "Tải lại",       IconType.Reload  },
+                { "Reload",        IconType.Reload  },
+                { "Thêm",          IconType.Add     },
+                { "Sửa",           IconType.Edit    },
+                { "Lưu",           IconType.Save    },
+                { "Hủy Bỏ",        IconType.Cancel  },
+                { "Xóa",           IconType.Delete  },
+                { "Xóa TK",        IconType.Delete  },
+                { "Trở Về",        IconType.Back    },
+                { "Test kết nối",  IconType.Test    },
+                { "Lưu cấu hình",  IconType.Save    },
+                { "Lưu Username",  IconType.Save    },
+                { "Đặt lại MK",    IconType.Key     },
+                { "Đổi Mật Khẩu",  IconType.Key     },
+            };
+            string cleanText = text.Trim();
+            foreach (var kv in iconMap)
+                if (cleanText.Contains(kv.Key))
+                {
+                    b.Image        = AppIcons.Get(kv.Value, 16, b.ForeColor == Color.White ? Color.White : Color.FromArgb(48,62,90));
+                    b.ImageAlign   = ContentAlignment.MiddleLeft;
+                    b.TextAlign    = ContentAlignment.MiddleCenter;
+                    b.TextImageRelation = TextImageRelation.ImageBeforeText;
+                    b.Padding      = new Padding(4, 0, 0, 0);
+                    b.Text         = "  " + cleanText;
+                    break;
+                }
+
+            return b;
+        }
+    }
+}
