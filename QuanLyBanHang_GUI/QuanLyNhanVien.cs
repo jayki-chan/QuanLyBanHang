@@ -184,6 +184,7 @@ namespace QuanLyBanHang_GUI
             {
                 var list = _bus.GetAll();        // ← BUS
                 var dt = new DataTable();
+                dt.Columns.Add("Ảnh", typeof(Image));
                 dt.Columns.Add("Mã NV"); dt.Columns.Add("Họ"); dt.Columns.Add("Tên");
                 dt.Columns.Add("Giới Tính"); dt.Columns.Add("Ngày Vào");
                 dt.Columns.Add("Địa Chỉ"); dt.Columns.Add("Điện Thoại");
@@ -191,13 +192,22 @@ namespace QuanLyBanHang_GUI
                 dt.Columns.Add("_Hinh");     // ẩn
 
                 foreach (var nv in list)
-                    dt.Rows.Add(nv.MaNV, nv.Ho, nv.Ten,
+                    dt.Rows.Add(LoadAvatarImage(nv.Hinh),
+                        nv.MaNV, nv.Ho, nv.Ten,
                         nv.Nu ? "Nữ" : "Nam",
                         nv.NgayNV.ToString("dd/MM/yyyy"),
                         nv.DiaChi, nv.DienThoai, nv.Username, nv.Role, nv.Hinh);
 
                 dgv.DataSource = dt;
                 if (dgv.Columns.Contains("_Hinh")) dgv.Columns["_Hinh"].Visible = false;
+                if (dgv.Columns.Contains("Ảnh"))
+                {
+                    var imgCol = (DataGridViewImageColumn)dgv.Columns["Ảnh"];
+                    imgCol.ImageLayout = DataGridViewImageCellLayout.Zoom;
+                    imgCol.Width = 58;
+                    imgCol.ReadOnly = true;
+                }
+                dgv.RowTemplate.Height = 56;
 
                 // Tô màu cột Quyền
                 dgv.CellFormatting += (s, e) =>
@@ -275,7 +285,7 @@ namespace QuanLyBanHang_GUI
         void Delete()
         {
             if (dgv.CurrentRow == null) { FormHelper.ShowWarn("Chọn dòng cần xóa."); return; }
-            string ma = dgv.CurrentRow.Cells[0].Value.ToString();
+            string ma = dgv.CurrentRow.Cells["Mã NV"].Value.ToString();
             if (!FormHelper.Confirm($"Xóa Nhân Viên '{ma}'?")) return;
 
             var (ok, msg) = _bus.Delete(ma);         // ← BUS
@@ -286,16 +296,16 @@ namespace QuanLyBanHang_GUI
         void FillRow(int r)
         {
             var row = dgv.Rows[r];
-            txtMa.Text     = row.Cells[0].Value?.ToString();
-            txtHo.Text     = row.Cells[1].Value?.ToString();
-            txtTen.Text    = row.Cells[2].Value?.ToString();
-            rdoNu.Checked  = row.Cells[3].Value?.ToString() == "Nữ";
+            txtMa.Text     = row.Cells["Mã NV"].Value?.ToString();
+            txtHo.Text     = row.Cells["Họ"].Value?.ToString();
+            txtTen.Text    = row.Cells["Tên"].Value?.ToString();
+            rdoNu.Checked  = row.Cells["Giới Tính"].Value?.ToString() == "Nữ";
             rdoNam.Checked = !rdoNu.Checked;
-            if (DateTime.TryParse(row.Cells[4].Value?.ToString(), out DateTime d)) dtpNgay.Value = d;
-            txtDiaChi.Text = row.Cells[5].Value?.ToString();
-            txtDT.Text     = row.Cells[6].Value?.ToString();
-            txtUser.Text   = row.Cells[7].Value?.ToString();
-            cboQuyen.SelectedItem = row.Cells[8].Value?.ToString() ?? "user";
+            if (DateTime.TryParse(row.Cells["Ngày Vào"].Value?.ToString(), out DateTime d)) dtpNgay.Value = d;
+            txtDiaChi.Text = row.Cells["Địa Chỉ"].Value?.ToString();
+            txtDT.Text     = row.Cells["Điện Thoại"].Value?.ToString();
+            txtUser.Text   = row.Cells["Tài Khoản"].Value?.ToString();
+            cboQuyen.SelectedItem = row.Cells["Quyền"].Value?.ToString() ?? "user";
             _anhPath = row.Cells["_Hinh"].Value?.ToString() ?? "";
             LoadAvatar(_anhPath);
         }
@@ -313,9 +323,14 @@ namespace QuanLyBanHang_GUI
 
         void LoadAvatar(string path)
         {
+            picAvatar.Image = LoadAvatarImage(path);
+        }
+
+        Image LoadAvatarImage(string path)
+        {
             if (!string.IsNullOrWhiteSpace(path) && File.Exists(path))
-                try { picAvatar.Image = Image.FromFile(path); return; } catch { }
-            picAvatar.Image = MakeDefaultAvatar();
+                try { return Image.FromFile(path); } catch { }
+            return MakeDefaultAvatar();
         }
 
         void SetEditMode(bool editing)
