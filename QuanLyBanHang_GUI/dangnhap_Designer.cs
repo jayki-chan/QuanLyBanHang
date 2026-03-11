@@ -60,7 +60,7 @@ namespace QuanLyBanHang_GUI
             this.lblSubtitle.Size = new Size(460, 22);
             this.lblSubtitle.Font = new Font("Segoe UI", 8.5F, FontStyle.Regular);
             this.lblSubtitle.ForeColor = Color.FromArgb(180, 210, 255);
-            this.lblSubtitle.Text = "ĐH Công Nghiệp Việt Hung - Lập trình Windows Form Nâng Cao";
+            this.lblSubtitle.Text = "Trường ĐH Công Nghiệp Việt Hung - Lập trình Windows Form Nâng Cao";
             this.lblSubtitle.TextAlign = ContentAlignment.MiddleCenter;
 
             // === pnlForm (card trắng chứa các input) ===
