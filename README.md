@@ -9,5 +9,3 @@ Lập trình WINDOWS FORM - Ứng dụng Quản Lý Bán Hàng
 - Vũ
 - Sơn
 - Linh
-
-Thằng vũ ăn l\
