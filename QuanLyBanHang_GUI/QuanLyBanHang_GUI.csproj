@@ -132,6 +132,9 @@
     <Compile Include="QuanLyThanhPho.Designer.cs">
       <DependentUpon>QuanLyThanhPho.cs</DependentUpon>
     </Compile>
+    <EmbeddedResource Include="dangnhap.resx">
+      <DependentUpon>dangnhap.cs</DependentUpon>
+    </EmbeddedResource>
     <EmbeddedResource Include="Properties\Resources.resx">
       <Generator>ResXFileCodeGenerator</Generator>
       <LastGenOutput>Resources.Designer.cs</LastGenOutput>

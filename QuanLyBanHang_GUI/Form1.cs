@@ -16,6 +16,7 @@ namespace QuanLyBanHang_GUI
         public Form1(string tenNhanVien = "", string username = "")
         {
             InitializeComponent();
+            SetMenuIcons();
             _tenNhanVien = tenNhanVien;
             _username    = username;
         }

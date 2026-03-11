@@ -241,8 +241,6 @@ namespace QuanLyBanHang_GUI
             this.menuStrip1.PerformLayout();
             this.ResumeLayout(false);
             this.PerformLayout();
-
-            SetMenuIcons();
         }
 
         private void SetMenuIcons()
