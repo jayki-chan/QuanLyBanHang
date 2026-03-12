@@ -48,6 +48,7 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="SanPham_HoaDon_ChiTietDAL.cs" />
     <Compile Include="ThanhPhoDAL.cs" />
+    <Compile Include="ChatHistoryDAL.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\QuanLyBanHang_DTO\QuanLyBanHang_DTO.csproj">

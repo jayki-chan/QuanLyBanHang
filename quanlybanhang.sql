@@ -167,3 +167,31 @@ GO
 
 PRINT 'Cập nhật Role và hash mật khẩu hoàn tất.';
 GO
+
+-- ============================================================
+-- Lịch sử hội thoại AI
+-- ============================================================
+
+-- Bảng lưu các phiên hội thoại (mỗi cuộc hội thoại là 1 dòng)
+IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='CHAT_HISTORY_SESSION' AND xtype='U')
+CREATE TABLE CHAT_HISTORY_SESSION (
+    Id        INT IDENTITY(1,1) PRIMARY KEY,
+    Username  VARCHAR(50)   NOT NULL DEFAULT '',
+    Title     NVARCHAR(200) NOT NULL DEFAULT N'Hội thoại mới',
+    CreatedAt DATETIME      NOT NULL DEFAULT GETDATE()
+);
+GO
+
+-- Bảng lưu từng tin nhắn trong một phiên hội thoại
+IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='CHAT_HISTORY_MESSAGE' AND xtype='U')
+CREATE TABLE CHAT_HISTORY_MESSAGE (
+    Id        INT IDENTITY(1,1) PRIMARY KEY,
+    SessionId INT           NOT NULL REFERENCES CHAT_HISTORY_SESSION(Id) ON DELETE CASCADE,
+    Role      VARCHAR(20)   NOT NULL,            -- 'user' hoặc 'assistant'
+    Content   NVARCHAR(MAX) NOT NULL,
+    CreatedAt DATETIME      NOT NULL DEFAULT GETDATE()
+);
+GO
+
+PRINT N'Tạo bảng CHAT_HISTORY_SESSION và CHAT_HISTORY_MESSAGE hoàn tất.';
+GO

@@ -49,6 +49,7 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="SanPhamDTO.cs" />
     <Compile Include="ThanhPhoDTO.cs" />
+    <Compile Include="ChatMessageDTO.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
