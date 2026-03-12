@@ -15,6 +15,7 @@ namespace QuanLyBanHang_GUI
             AppDomain.CurrentDomain.BaseDirectory, "dbconfig.ini");
 
         TextBox txtServer, txtDatabase, txtUser, txtPass;
+        TextBox txtApiKey, txtAiModel;
         RadioButton rdoWindows, rdoSQL;
         Label lblStatus;
         Button btnTest, btnLuu;
@@ -28,7 +29,7 @@ namespace QuanLyBanHang_GUI
         void BuildUI()
         {
             this.Text = "Cấu Hình Hệ Thống";
-            this.ClientSize = new Size(500, 490);
+            this.ClientSize = new Size(500, 660);
             this.FormBorderStyle = FormBorderStyle.FixedDialog;
             this.MaximizeBox = false;
             this.StartPosition = FormStartPosition.CenterScreen;
@@ -93,19 +94,23 @@ namespace QuanLyBanHang_GUI
             {
                 Dock = DockStyle.Top,
                 ColumnCount = 2,
-                RowCount = 6,
+                RowCount = 10,
                 BackColor = Color.White,
                 Padding = new Padding(12, 8, 12, 12),
                 AutoSize = true
             };
             tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 145));
             tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, 52)); // Server
-            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, 52)); // Database
-            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, 62)); // Auth radios
-            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, 52)); // User
-            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, 52)); // Pass
-            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, 32)); // Status
+            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, 52)); // 0: Server
+            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, 52)); // 1: Database
+            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, 62)); // 2: Auth radios
+            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, 52)); // 3: User
+            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, 52)); // 4: Pass
+            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, 32)); // 5: Status
+            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, 36)); // 6: AI header
+            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, 52)); // 7: API Key
+            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, 52)); // 8: Model
+            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, 32)); // 9: AI hint
 
             // Row 0 — Server
             tbl.Controls.Add(TblLbl("Tên Server:"), 0, 0);
@@ -156,6 +161,42 @@ namespace QuanLyBanHang_GUI
                 TextAlign = ContentAlignment.MiddleLeft
             };
             tbl.Controls.Add(lblStatus, 1, 5);
+
+            // Row 6 — AI section header
+            var lblAiSec = new Label
+            {
+                Text = "  🤖  CẤU HÌNH AI (OPENAI)",
+                Dock = DockStyle.Fill,
+                Font = new Font("Segoe UI Semibold", 9.5F, FontStyle.Bold),
+                ForeColor = Color.White,
+                BackColor = Color.FromArgb(40, 90, 155),
+                TextAlign = ContentAlignment.MiddleLeft
+            };
+            tbl.Controls.Add(lblAiSec, 0, 6);
+            tbl.SetColumnSpan(lblAiSec, 2);
+
+            // Row 7 — OpenAI API Key
+            tbl.Controls.Add(TblLbl("OpenAI API Key:"), 0, 7);
+            txtApiKey = TblTxt();
+            txtApiKey.UseSystemPasswordChar = true;
+            tbl.Controls.Add(txtApiKey, 1, 7);
+
+            // Row 8 — Model
+            tbl.Controls.Add(TblLbl("Model AI:"), 0, 8);
+            txtAiModel = TblTxt();
+            tbl.Controls.Add(txtAiModel, 1, 8);
+
+            // Row 9 — Hint
+            tbl.Controls.Add(new Label(), 0, 9);
+            var lblAiHint = new Label
+            {
+                Dock = DockStyle.Fill,
+                Font = new Font("Segoe UI", 8F, FontStyle.Italic),
+                ForeColor = Color.FromArgb(100, 120, 160),
+                Text = "Lấy API Key tại: platform.openai.com  |  Model mặc định: gpt-4o-mini",
+                TextAlign = ContentAlignment.MiddleLeft
+            };
+            tbl.Controls.Add(lblAiHint, 1, 9);
 
             // Bọc section + table vào wrapper panel
             var pnlCard = new Panel { Dock = DockStyle.Top, BackColor = Color.Transparent };
@@ -266,8 +307,10 @@ namespace QuanLyBanHang_GUI
                         rdoSQL.Checked     = val == "SQL";
                         rdoWindows.Checked = val != "SQL";
                         break;
-                    case "User": txtUser.Text = val; break;
-                    case "Pass": txtPass.Text = val; break;
+                    case "User":        txtUser.Text   = val; break;
+                    case "Pass":        txtPass.Text   = val; break;
+                    case "OpenAI_Key":  txtApiKey.Text = val; break;
+                    case "OpenAI_Model": txtAiModel.Text = val; break;
                 }
             }
         }
@@ -276,11 +319,13 @@ namespace QuanLyBanHang_GUI
         {
             File.WriteAllLines(ConfigFile, new[]
             {
-                "Server="   + txtServer.Text.Trim(),
-                "Database=" + txtDatabase.Text.Trim(),
-                "AuthType=" + (rdoSQL.Checked ? "SQL" : "Windows"),
-                "User="     + txtUser.Text.Trim(),
-                "Pass="     + txtPass.Text.Trim()
+                "Server="        + txtServer.Text.Trim(),
+                "Database="      + txtDatabase.Text.Trim(),
+                "AuthType="      + (rdoSQL.Checked ? "SQL" : "Windows"),
+                "User="          + txtUser.Text.Trim(),
+                "Pass="          + txtPass.Text.Trim(),
+                "OpenAI_Key="    + txtApiKey.Text.Trim(),
+                "OpenAI_Model="  + txtAiModel.Text.Trim()
             });
         }
 

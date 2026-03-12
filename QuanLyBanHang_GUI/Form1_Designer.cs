@@ -44,6 +44,7 @@ namespace QuanLyBanHang_GUI
             this.hóaĐơnTheoNhânViênToolStripMenuItem        = new ToolStripMenuItem();
             this.chiTiếtHóaĐơnTheoNhânViênToolStripMenuItem = new ToolStripMenuItem();
             this.giúpĐỡToolStripMenuItem                    = new ToolStripMenuItem();
+            this.chatVớiAIToolStripMenuItem                  = new ToolStripMenuItem();
             this.hướngDẫnSửDụngToolStripMenuItem            = new ToolStripMenuItem();
             this.tácGiảToolStripMenuItem                    = new ToolStripMenuItem();
             this.statusStrip1 = new StatusStrip();
@@ -203,10 +204,15 @@ namespace QuanLyBanHang_GUI
             this.giúpĐỡToolStripMenuItem.ForeColor = Color.White;
             this.giúpĐỡToolStripMenuItem.Font = new Font("Segoe UI Semibold", 9.5F, FontStyle.Bold);
             this.giúpĐỡToolStripMenuItem.DropDownItems.AddRange(new ToolStripItem[] {
+                chatVớiAIToolStripMenuItem,
                 hướngDẫnSửDụngToolStripMenuItem,
                 tácGiảToolStripMenuItem
             });
 
+            this.chatVớiAIToolStripMenuItem.Text   = "Chat với AI 🤖";
+            this.chatVớiAIToolStripMenuItem.Font   = new Font("Segoe UI", 9.5F, FontStyle.Bold);
+            this.chatVớiAIToolStripMenuItem.ForeColor = Color.FromArgb(0, 88, 180);
+            this.chatVớiAIToolStripMenuItem.Click += new System.EventHandler(chatVớiAIToolStripMenuItem_Click);
             this.hướngDẫnSửDụngToolStripMenuItem.Text   = "Hướng dẫn sử dụng";
             this.hướngDẫnSửDụngToolStripMenuItem.Font   = new Font("Segoe UI", 9.5F);
             this.hướngDẫnSửDụngToolStripMenuItem.Click += new System.EventHandler(hướngDẫnSửDụngToolStripMenuItem_Click);
@@ -299,6 +305,7 @@ namespace QuanLyBanHang_GUI
             chiTiếtHóaĐơnTheoNhânViênToolStripMenuItem.Image  = AppIcons.Get(IconType.Chart, sz, dk);
 
             // ── Giúp đỡ dropdown ──────────────────────────────
+            chatVớiAIToolStripMenuItem.Image             = AppIcons.Get(IconType.Chat, sz, dk);
             hướngDẫnSửDụngToolStripMenuItem.Image = AppIcons.Get(IconType.Help, sz, dk);
             tácGiảToolStripMenuItem.Image         = AppIcons.Get(IconType.Info, sz, dk);
         }
@@ -321,7 +328,7 @@ namespace QuanLyBanHang_GUI
             hóaĐơnTheoSảnPhẩmToolStripMenuItem, hóaĐơnTheoNhânViênToolStripMenuItem,
             chiTiếtHóaĐơnTheoNhânViênToolStripMenuItem;
         private ToolStripMenuItem giúpĐỡToolStripMenuItem,
-            hướngDẫnSửDụngToolStripMenuItem, tácGiảToolStripMenuItem;
+            chatVớiAIToolStripMenuItem, hướngDẫnSửDụngToolStripMenuItem, tácGiảToolStripMenuItem;
         private StatusStrip statusStrip1;
         private ToolStripStatusLabel lblStatus;
     }

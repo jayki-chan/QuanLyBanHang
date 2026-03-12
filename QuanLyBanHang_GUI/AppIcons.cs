@@ -55,6 +55,7 @@ namespace QuanLyBanHang_GUI
                         case IconType.Info:       DrawInfo(g, pen, fill, s, m);  break;
                         case IconType.Key:        DrawKey(g, pen, fill, s, m);   break;
                         case IconType.Test:       DrawTest(g, pen, fill, s, m);  break;
+                        case IconType.Chat:       DrawChat(g, pen, fill, s, m);  break;
                     }
                 }
             }
@@ -471,14 +472,43 @@ namespace QuanLyBanHang_GUI
             g.DrawLine(p, cx - ck, cy, cx - ck*0.2f, cy + ck*0.7f);
             g.DrawLine(p, cx - ck*0.2f, cy + ck*0.7f, cx + ck, cy - ck*0.5f);
         }
-    }
 
+        // 🤖 Chat — bong bóng hội thoại
+        static void DrawChat(Graphics g, Pen p, SolidBrush fill, float s, float m)
+        {
+            float r = s * 0.12f;
+            float l = m, t = m, w = s - m * 2, h = s * 0.65f;
+            var path = new GraphicsPath();
+            path.AddArc(l, t, r * 2, r * 2, 180, 90);
+            path.AddArc(l + w - r * 2, t, r * 2, r * 2, 270, 90);
+            path.AddArc(l + w - r * 2, t + h - r * 2, r * 2, r * 2, 0, 90);
+            path.AddArc(l, t + h - r * 2, r * 2, r * 2, 90, 90);
+            path.CloseFigure();
+            g.FillPath(fill, path);
+            // Đuôi bong bóng
+            float bx = l + s * 0.18f, by = t + h - 0.5f;
+            g.FillPolygon(fill, new PointF[] {
+                new PointF(bx, by),
+                new PointF(bx + s * 0.14f, by),
+                new PointF(bx, by + s * 0.22f)
+            });
+            // Dấu chấm ... bên trong
+            float dy = t + h * 0.48f, dd = s * 0.12f;
+            using (var wb = new SolidBrush(Color.White))
+            {
+                float dx = l + w * 0.28f;
+                for (int i = 0; i < 3; i++)
+                    g.FillEllipse(wb, dx + i * dd, dy - s * 0.05f, s * 0.07f, s * 0.07f);
+            }
+        }
+    }
     // ── Enum các loại icon ────────────────────────────────────
     public enum IconType
     {
         Reload, Add, Edit, Save, Cancel, Delete, Back,
         Search, Login, Logout, Password, Settings,
         User, Users, Exit, Connect, Filter, Photo,
-        Invoice, Product, City, Chart, Help, Info, Key, Test
+        Invoice, Product, City, Chart, Help, Info, Key, Test,
+        Chat
     }
 }

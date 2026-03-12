@@ -13,6 +13,7 @@ namespace QuanLyBanHang_GUI
         private NhanVienDTO    _loggedUser;
         private NhanVienBUS    _busNV = new NhanVienBUS();
         private DashboardPanel _dashboard;
+        private ChatWidget     _chatWidget;
 
         public Form1(NhanVienDTO user = null)
         {
@@ -199,8 +200,46 @@ namespace QuanLyBanHang_GUI
         }
 
         // ── Giúp đỡ ───────────────────────────────────────────
+        private void chatVớiAIToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            if (_chatWidget == null || _chatWidget.IsDisposed)
+                _chatWidget = new ChatWidget(_loggedUser);
+
+            if (!_chatWidget.Visible)
+                _chatWidget.Show(this);
+            else
+                _chatWidget.BringToFront();
+        }
+
         private void hướngDẫnSửDụngToolStripMenuItem_Click(object sender, EventArgs e)
-            => MessageBox.Show("Hướng dẫn sử dụng phần mềm Quản Lý Bán Hàng", "Giúp đỡ", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        {
+            MessageBox.Show(
+                "HƯỚNG DẪN SỬ DỤNG – QUẢN LÝ BÁN HÀNG\r\n" +
+                "════════════════════════════════════\r\n\r\n" +
+                "📋  CHỨC NĂNG CHÍNH\r\n" +
+                "  • Xem Danh mục    – Xem danh sách các bảng dữ liệu\r\n" +
+                "  • Quản lý đơn    – Thêm / Sửa / Xóa từng bảng\r\n" +
+                "  • Quản lý nhóm   – Báo cáo tổng hợp\r\n" +
+                "  • Hệ thống       – Cấu hình, tài khoản, đổi mật khẩu\r\n\r\n" +
+                "🤖  TÍNH NĂNG CHAT VỚI AI\r\n" +
+                "  Vào menu  Giúp đỡ → Chat với AI 🤖  để mở cửa sổ trợ lý.\r\n\r\n" +
+                "  Trợ lý AI có thể:\r\n" +
+                "  • Tra cứu dữ liệu thực tế từ database\r\n" +
+                "    (hỏi: \"Khách hàng nào ở Hà Nội?\", \"Doanh thu tháng 1?\"...)\r\n" +
+                "  • Giải thích cách dùng các tính năng của phần mềm\r\n" +
+                "  • Thống kê nhanh và tư vấn nghiệp vụ\r\n" +
+                "  • Trả lời theo đúng quyền hạn tài khoản đang đăng nhập\r\n\r\n" +
+                "  ⚙️  Cần cấu hình OpenAI API Key trước:\r\n" +
+                "     Hệ thống → Cấu hình hệ thống → mục Cấu hình AI\r\n\r\n" +
+                "  📌  Phím tắt trong cửa sổ Chat:\r\n" +
+                "     Enter   – Gửi tin nhắn\r\n" +
+                "     Nút Xóa LS – Xóa toàn bộ lịch sử hội thoại\r\n\r\n" +
+                "════════════════════════════════════\r\n" +
+                "Cần hỗ trợ? Liên hệ quản trị viên hệ thống.",
+                "Hướng dẫn sử dụng",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Information);
+        }
 
         private void tácGiảToolStripMenuItem_Click(object sender, EventArgs e)
             => MessageBox.Show("Tác giả: Sinh viên - ĐH Công Nghiệp Việt Hung", "Giúp đỡ", MessageBoxButtons.OK, MessageBoxIcon.Information);
