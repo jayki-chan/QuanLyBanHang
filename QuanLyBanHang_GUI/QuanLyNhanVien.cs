@@ -19,7 +19,7 @@ namespace QuanLyBanHang_GUI
         Button btnChonAnh;
         DataGridView dgv;
         Button btnReload, btnThem, btnSua, btnLuu, btnHuybo, btnXoa;
-        TextBox txtMa, txtHo, txtTen, txtDiaChi, txtDT, txtUser, txtPass;
+        TextBox txtMa, txtHo, txtTen, txtDiaChi, txtDT, txtUser, txtPass, txtSearch;
         CheckBox chkGiuPass;
         RadioButton rdoNam, rdoNu;
         DateTimePicker dtpNgay;
@@ -27,6 +27,8 @@ namespace QuanLyBanHang_GUI
 
         bool _adding;
         string _anhPath = "";
+        DataTable _masterDt;
+        EventHandler _chkGiuPassHandler;
 
         static readonly Color NavBlue     = Color.FromArgb(30, 55, 100);
         static readonly Color NavBlueLite = Color.FromArgb(242, 246, 255);
@@ -166,9 +168,34 @@ namespace QuanLyBanHang_GUI
             btnHuybo.Click  += (s, e) => { ClearFields(); SetEditMode(false); };
             btnXoa.Click    += (s, e) => Delete();
 
-            // ── Assemble ─────────────────────────────────────
+            // ── Search bar ───────────────────────────────────────────
+            var pnlSearch = new Panel { BackColor = Color.FromArgb(235, 239, 250), Dock = DockStyle.Top, Height = 38 };
+            pnlSearch.Paint += (s, e) => e.Graphics.DrawLine(new Pen(BorderCol), 0, pnlSearch.Height - 1, pnlSearch.Width, pnlSearch.Height - 1);
+            pnlSearch.Controls.Add(new Label
+            {
+                Text = "🔍  Tìm kiếm:", Location = new Point(14, 10), AutoSize = true,
+                Font = new Font("Segoe UI", 9F), ForeColor = Color.FromArgb(40, 60, 110)
+            });
+            txtSearch = new TextBox
+            {
+                Location = new Point(118, 7), Size = new Size(300, 24),
+                Font = new Font("Segoe UI", 9.5F), BorderStyle = BorderStyle.FixedSingle,
+                BackColor = Color.White
+            };
+            txtSearch.TextChanged += (s, e) => FilterGrid();
+            pnlSearch.Controls.Add(txtSearch);
+            pnlSearch.Controls.Add(new Label
+            {
+                Text = "(Tên, Mã NV, Điện thoại, Tài khoản)",
+                Location = new Point(424, 10), AutoSize = true,
+                Font = new Font("Segoe UI", 8F, FontStyle.Italic),
+                ForeColor = Color.FromArgb(120, 140, 180)
+            });
+
+            // ── Assemble ─────────────────────────────────────────────────
             this.Controls.Add(pnlGrid);
             this.Controls.Add(pnlFooter);
+            this.Controls.Add(pnlSearch);
             var pnlInputRow = new Panel { Dock = DockStyle.Top, Height = 140, BackColor = NavBlueLite };
             pnlInputRow.Controls.Add(pnlInput);
             pnlInput.Dock = DockStyle.Fill;
@@ -198,7 +225,8 @@ namespace QuanLyBanHang_GUI
                         nv.NgayNV.ToString("dd/MM/yyyy"),
                         nv.DiaChi, nv.DienThoai, nv.Username, nv.Role, nv.Hinh);
 
-                dgv.DataSource = dt;
+                _masterDt = dt;
+                dgv.DataSource = _masterDt;
                 if (dgv.Columns.Contains("_Hinh")) dgv.Columns["_Hinh"].Visible = false;
                 if (dgv.Columns.Contains("Ảnh"))
                 {
@@ -243,7 +271,11 @@ namespace QuanLyBanHang_GUI
             chkGiuPass.Visible = true;
             chkGiuPass.Checked = true;
             txtPass.Enabled = false;
-            chkGiuPass.CheckedChanged += (s, e) => txtPass.Enabled = !chkGiuPass.Checked;
+            // Huỷ handler cũ trước khi đăng ký mới, tránh chồng chất
+            if (_chkGiuPassHandler != null)
+                chkGiuPass.CheckedChanged -= _chkGiuPassHandler;
+            _chkGiuPassHandler = (s, e) => txtPass.Enabled = !chkGiuPass.Checked;
+            chkGiuPass.CheckedChanged += _chkGiuPassHandler;
             SetEditMode(true);
             txtHo.Focus();
         }
@@ -348,6 +380,18 @@ namespace QuanLyBanHang_GUI
             rdoNam.Checked = true; dtpNgay.Value = DateTime.Today;
             cboQuyen.SelectedIndex = 0;
             _anhPath = ""; picAvatar.Image = MakeDefaultAvatar();
+        }
+
+        void FilterGrid()
+        {
+            if (_masterDt == null) return;
+            string q = txtSearch.Text.Trim();
+            _masterDt.DefaultView.RowFilter = string.IsNullOrEmpty(q) ? "" :
+                $"[Mã NV] LIKE '%{q.Replace("'", "''")}%' OR " +
+                $"[Họ] LIKE '%{q.Replace("'", "''")}%' OR " +
+                $"[Tên] LIKE '%{q.Replace("'", "''")}%' OR " +
+                $"[Điện Thoại] LIKE '%{q.Replace("'", "''")}%' OR " +
+                $"[Tài Khoản] LIKE '%{q.Replace("'", "''")}%'";
         }
 
         // ── UI helpers ───────────────────────────────────────

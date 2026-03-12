@@ -1,7 +1,6 @@
-using QuanLyBanHang_DAL;
+using QuanLyBanHang_BUS;
 using System;
 using System.Data;
-using System.Data.SqlClient;
 using System.Drawing;
 using System.Windows.Forms;
 
@@ -18,8 +17,11 @@ namespace QuanLyBanHang_GUI
         static readonly Color InputBg   = Color.FromArgb(242, 246, 255);
         static readonly Color BorderCol = Color.FromArgb(208, 214, 228);
 
+        private readonly NhanVienBUS _busNV = new NhanVienBUS();
+
         DataGridView dgv;
         TextBox txtMaNV, txtHoTen, txtUser, txtPassMoi, txtPassXacNhan;
+        ComboBox cboQuyen;
         Button btnReload, btnLuu, btnResetPass, btnXoa, btnTroVe;
         Label lblPassStrength;
         Panel pnlEdit;
@@ -73,6 +75,24 @@ namespace QuanLyBanHang_GUI
             EditField(pnlEdit, "Mã Nhân Viên:", ref y, out txtMaNV, readOnly: true);
             EditField(pnlEdit, "Họ và Tên:", ref y, out txtHoTen, readOnly: true);
             EditField(pnlEdit, "Username:", ref y, out txtUser, readOnly: false);
+
+            // Quyền (Role)
+            pnlEdit.Controls.Add(new Label
+            {
+                Text = "Quyền (Role):", Location = new Point(16, y), AutoSize = true,
+                Font = new Font("Segoe UI", 8.5F), ForeColor = Color.FromArgb(68, 82, 110)
+            });
+            y += 18;
+            cboQuyen = new ComboBox
+            {
+                Location = new Point(16, y), Size = new Size(270, 26),
+                DropDownStyle = ComboBoxStyle.DropDownList,
+                Font = new Font("Segoe UI Semibold", 9F, FontStyle.Bold), FlatStyle = FlatStyle.Flat
+            };
+            cboQuyen.Items.AddRange(new object[] { "user", "admin" });
+            cboQuyen.SelectedIndex = 0;
+            pnlEdit.Controls.Add(cboQuyen);
+            y += 38;
 
             // Divider
             var div = new Label
@@ -266,25 +286,25 @@ namespace QuanLyBanHang_GUI
         {
             try
             {
-                using (var c = DBConnection.GetConnection())
+                var list = _busNV.GetAll();
+                var dt = new DataTable();
+                dt.Columns.Add("Mã NV");
+                dt.Columns.Add("Họ và Tên");
+                dt.Columns.Add("Username");
+                dt.Columns.Add("Quyền");
+                dt.Columns.Add("Trạng Thái");
+                foreach (var nv in list)
                 {
-                    var dt = new DataTable();
-                    new SqlDataAdapter(@"
-                        SELECT MaNV       AS [Mã NV],
-                               Ho+' '+Ten AS [Họ và Tên],
-                               Username   AS [Username],
-                               CASE WHEN Username IS NULL OR Username='' THEN N'Chưa có tài khoản'
-                                    ELSE N'Có tài khoản' END AS [Trạng Thái]
-                        FROM NHANVIEN ORDER BY MaNV", c).Fill(dt);
-                    dgv.DataSource = dt;
-
-                    // Tô màu trạng thái
-                    foreach (DataGridViewRow row in dgv.Rows)
-                    {
-                        bool active = row.Cells[3].Value?.ToString() == "Có tài khoản";
-                        row.Cells[3].Style.ForeColor    = active ? Color.FromArgb(20, 130, 60) : Color.FromArgb(160, 60, 60);
-                        row.Cells[3].Style.Font         = new Font("Segoe UI", 9F, FontStyle.Bold);
-                    }
+                    bool hasAcc = !string.IsNullOrEmpty(nv.Username);
+                    dt.Rows.Add(nv.MaNV, nv.HoTen, nv.Username, nv.Role,
+                        hasAcc ? "Có tài khoản" : "Chưa có tài khoản");
+                }
+                dgv.DataSource = dt;
+                foreach (DataGridViewRow row in dgv.Rows)
+                {
+                    bool active = row.Cells["Trạng Thái"].Value?.ToString() == "Có tài khoản";
+                    row.Cells["Trạng Thái"].Style.ForeColor = active ? Color.FromArgb(20, 130, 60) : Color.FromArgb(160, 60, 60);
+                    row.Cells["Trạng Thái"].Style.Font      = new Font("Segoe UI", 9F, FontStyle.Bold);
                 }
                 ClearEdit();
             }
@@ -295,9 +315,10 @@ namespace QuanLyBanHang_GUI
         {
             if (e.RowIndex < 0) return;
             var row = dgv.Rows[e.RowIndex];
-            txtMaNV.Text  = row.Cells[0].Value?.ToString();
-            txtHoTen.Text = row.Cells[1].Value?.ToString();
-            txtUser.Text  = row.Cells[2].Value?.ToString();
+            txtMaNV.Text  = row.Cells["Mã NV"].Value?.ToString();
+            txtHoTen.Text = row.Cells["Họ và Tên"].Value?.ToString();
+            txtUser.Text  = row.Cells["Username"].Value?.ToString();
+            cboQuyen.SelectedItem = row.Cells["Quyền"].Value?.ToString() ?? "user";
             txtPassMoi.Clear();
             txtPassXacNhan.Clear();
             lblPassStrength.Text = "";
@@ -332,26 +353,19 @@ namespace QuanLyBanHang_GUI
         {
             if (string.IsNullOrWhiteSpace(txtMaNV.Text)) { FormHelper.ShowWarn("Chọn nhân viên trong danh sách."); return; }
             if (string.IsNullOrWhiteSpace(txtUser.Text)) { FormHelper.ShowWarn("Username không được để trống."); return; }
-            using (var c = DBConnection.GetConnection())
-            {
-                try
-                {
-                    c.Open();
-                    // Kiểm tra username trùng
-                    var chk = new SqlCommand("SELECT COUNT(*) FROM NHANVIEN WHERE Username=@u AND MaNV<>@ma", c);
-                    chk.Parameters.AddWithValue("@u", txtUser.Text.Trim());
-                    chk.Parameters.AddWithValue("@ma", txtMaNV.Text.Trim());
-                    if ((int)chk.ExecuteScalar() > 0) { FormHelper.ShowWarn("Username đã tồn tại. Vui lòng chọn username khác."); return; }
 
-                    var cmd = new SqlCommand("UPDATE NHANVIEN SET Username=@u WHERE MaNV=@ma", c);
-                    cmd.Parameters.AddWithValue("@u", txtUser.Text.Trim());
-                    cmd.Parameters.AddWithValue("@ma", txtMaNV.Text.Trim());
-                    cmd.ExecuteNonQuery();
-                    FormHelper.ShowOK("Đã cập nhật Username thành công!");
-                    Load_();
-                }
-                catch (Exception ex) { FormHelper.ShowError(ex.Message); }
-            }
+            string maNV     = txtMaNV.Text.Trim();
+            string username = txtUser.Text.Trim();
+            string role     = cboQuyen.SelectedItem?.ToString() ?? "user";
+
+            var (okU, msgU) = _busNV.UpdateUsername(maNV, username);
+            if (!okU) { FormHelper.ShowWarn(msgU); return; }
+
+            var (okR, msgR) = _busNV.SetRole(maNV, role);
+            if (!okR) { FormHelper.ShowWarn(msgR); return; }
+
+            FormHelper.ShowOK("Đã cập nhật Username và Quyền thành công!");
+            Load_();
         }
 
         // ── Reset mật khẩu ───────────────────────────────────
@@ -362,20 +376,13 @@ namespace QuanLyBanHang_GUI
             if (txtPassMoi.Text != txtPassXacNhan.Text) { FormHelper.ShowWarn("Mật khẩu xác nhận không khớp."); return; }
             if (!FormHelper.Confirm($"Đặt lại mật khẩu cho '{txtHoTen.Text}' ({txtMaNV.Text})?")) return;
 
-            using (var c = DBConnection.GetConnection())
+            var (ok, msg) = _busNV.ResetPassword(txtMaNV.Text.Trim(), txtPassMoi.Text.Trim());
+            if (ok)
             {
-                try
-                {
-                    c.Open();
-                    var cmd = new SqlCommand("UPDATE NHANVIEN SET Matkhau=@p WHERE MaNV=@ma", c);
-                    cmd.Parameters.AddWithValue("@p", txtPassMoi.Text.Trim());
-                    cmd.Parameters.AddWithValue("@ma", txtMaNV.Text.Trim());
-                    cmd.ExecuteNonQuery();
-                    FormHelper.ShowOK("Đã đặt lại mật khẩu thành công!");
-                    txtPassMoi.Clear(); txtPassXacNhan.Clear(); lblPassStrength.Text = "";
-                }
-                catch (Exception ex) { FormHelper.ShowError(ex.Message); }
+                FormHelper.ShowOK(msg);
+                txtPassMoi.Clear(); txtPassXacNhan.Clear(); lblPassStrength.Text = "";
             }
+            else FormHelper.ShowWarn(msg);
         }
 
         // ── Xóa tài khoản (xóa username + pass) ─────────────
@@ -383,19 +390,10 @@ namespace QuanLyBanHang_GUI
         {
             if (string.IsNullOrWhiteSpace(txtMaNV.Text)) { FormHelper.ShowWarn("Chọn nhân viên trong danh sách."); return; }
             if (!FormHelper.Confirm($"Xóa tài khoản của '{txtHoTen.Text}'?\n(Username và mật khẩu sẽ bị xóa, nhân viên vẫn còn trong hệ thống)")) return;
-            using (var c = DBConnection.GetConnection())
-            {
-                try
-                {
-                    c.Open();
-                    var cmd = new SqlCommand("UPDATE NHANVIEN SET Username=NULL, Matkhau=NULL WHERE MaNV=@ma", c);
-                    cmd.Parameters.AddWithValue("@ma", txtMaNV.Text.Trim());
-                    cmd.ExecuteNonQuery();
-                    FormHelper.ShowOK("Đã xóa tài khoản thành công!");
-                    Load_();
-                }
-                catch (Exception ex) { FormHelper.ShowError(ex.Message); }
-            }
+
+            var (ok, msg) = _busNV.DeleteAccount(txtMaNV.Text.Trim());
+            if (ok) { FormHelper.ShowOK(msg); Load_(); }
+            else FormHelper.ShowError(msg);
         }
 
         void ClearEdit()
@@ -403,6 +401,7 @@ namespace QuanLyBanHang_GUI
             txtMaNV.Clear(); txtHoTen.Clear(); txtUser.Clear();
             txtPassMoi.Clear(); txtPassXacNhan.Clear();
             lblPassStrength.Text = "";
+            if (cboQuyen != null) cboQuyen.SelectedIndex = 0;
         }
     }
 }

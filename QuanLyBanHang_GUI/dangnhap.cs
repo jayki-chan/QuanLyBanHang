@@ -1,14 +1,19 @@
 ﻿using System;
-using System.Data.SqlClient;
 using System.Windows.Forms;
-using QuanLyBanHang_DAL;
+using QuanLyBanHang_BUS;
+using QuanLyBanHang_DTO;
 
 namespace QuanLyBanHang_GUI
 {
     public partial class dangnhap : Form
     {
-        // Property để Form1 lấy tên nhân viên sau khi đăng nhập
-        public string TenNhanVien { get; private set; } = "";
+        private readonly NhanVienBUS _bus = new NhanVienBUS();
+
+        /// <summary>Thông tin nhân viên đã đăng nhập thành công.</summary>
+        public NhanVienDTO LoggedInUser { get; private set; }
+
+        /// <summary>Giữ lại để tương thích ngược với code cũ.</summary>
+        public string TenNhanVien => LoggedInUser?.HoTen ?? "";
 
         public dangnhap()
         {
@@ -30,38 +35,27 @@ namespace QuanLyBanHang_GUI
                 return;
             }
 
-            // Dùng DBConnection chung
-            using (SqlConnection conn = DBConnection.GetConnection())
+            try
             {
-                try
+                var user = _bus.Login(txtUser.Text.Trim(), txtPassword.Text.Trim());
+                if (user != null)
                 {
-                    conn.Open();
-                    string sql = "SELECT Ho + ' ' + Ten AS TenNV FROM NHANVIEN " +
-                                 "WHERE Username = @user AND Matkhau = @pass";
-                    SqlCommand cmd = new SqlCommand(sql, conn);
-                    cmd.Parameters.AddWithValue("@user", txtUser.Text.Trim());
-                    cmd.Parameters.AddWithValue("@pass", txtPassword.Text.Trim());
-
-                    object result = cmd.ExecuteScalar();
-                    if (result != null)
-                    {
-                        TenNhanVien = result.ToString();
-                        this.DialogResult = DialogResult.OK;
-                        this.Close();
-                    }
-                    else
-                    {
-                        lblError.Text = "Tên đăng nhập hoặc mật khẩu không đúng.";
-                        lblError.Visible = true;
-                        txtPassword.Clear();
-                        txtPassword.Focus();
-                    }
+                    LoggedInUser = user;
+                    this.DialogResult = DialogResult.OK;
+                    this.Close();
                 }
-                catch (Exception ex)
+                else
                 {
-                    lblError.Text = "Lỗi kết nối CSDL: " + ex.Message;
+                    lblError.Text = "Tên đăng nhập hoặc mật khẩu không đúng.";
                     lblError.Visible = true;
+                    txtPassword.Clear();
+                    txtPassword.Focus();
                 }
+            }
+            catch (Exception ex)
+            {
+                lblError.Text = "Lỗi kết nối CSDL: " + ex.Message;
+                lblError.Visible = true;
             }
         }
 

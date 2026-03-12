@@ -62,6 +62,57 @@ namespace QuanLyBanHang_BUS
                 : (false, "Không thể xóa. Nhân viên có thể đang có hóa đơn.");
         }
 
+        public (bool ok, string msg) UpdateUsername(string maNV, string username)
+        {
+            if (string.IsNullOrWhiteSpace(username))
+                return (false, "Username không được để trống.");
+            if (_dal.UsernameExists(username, maNV))
+                return (false, "Username đã được sử dụng bởi nhân viên khác.");
+            return _dal.UpdateUsername(maNV, username)
+                ? (true, "Đã cập nhật Username thành công!")
+                : (false, "Cập nhật thất bại.");
+        }
+
+        public (bool ok, string msg) SetRole(string maNV, string role)
+        {
+            if (role != "admin" && role != "user")
+                return (false, "Giá trị quyền không hợp lệ (admin/user).");
+            return _dal.SetRole(maNV, role)
+                ? (true, "Đã cập nhật quyền thành công!")
+                : (false, "Cập nhật quyền thất bại.");
+        }
+
+        public (bool ok, string msg) ResetPassword(string maNV, string newPass)
+        {
+            if (string.IsNullOrWhiteSpace(newPass) || newPass.Length < 6)
+                return (false, "Mật khẩu mới phải từ 6 ký tự trở lên.");
+            return _dal.ResetPassword(maNV, newPass)
+                ? (true, "Đã đặt lại mật khẩu thành công!")
+                : (false, "Đặt lại mật khẩu thất bại.");
+        }
+
+        public (bool ok, string msg) ChangePassword(string username, string oldPass, string newPass)
+        {
+            if (_dal.Login(username, oldPass) == null)
+                return (false, "Mật khẩu hiện tại không đúng.");
+            if (string.IsNullOrWhiteSpace(newPass) || newPass.Length < 6)
+                return (false, "Mật khẩu mới phải từ 6 ký tự trở lên.");
+            if (oldPass == newPass)
+                return (false, "Mật khẩu mới phải khác mật khẩu cũ.");
+            return _dal.ChangePasswordByUsername(username, newPass)
+                ? (true, "Đổi mật khẩu thành công!\nVui lòng dùng mật khẩu mới cho lần đăng nhập sau.")
+                : (false, "Đổi mật khẩu thất bại.");
+        }
+
+        public (bool ok, string msg) DeleteAccount(string maNV)
+        {
+            if (!_dal.Exists(maNV))
+                return (false, "Không tìm thấy nhân viên.");
+            return _dal.DeleteAccount(maNV)
+                ? (true, "Đã xóa tài khoản thành công!")
+                : (false, "Xóa tài khoản thất bại.");
+        }
+
         /// <summary>Đánh giá độ mạnh mật khẩu: 0=Yếu, 1=Trung bình, 2=Mạnh</summary>
         public int PasswordStrength(string pass)
         {

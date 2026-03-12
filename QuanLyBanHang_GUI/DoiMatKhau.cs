@@ -1,6 +1,5 @@
-using QuanLyBanHang_DAL;
+using QuanLyBanHang_BUS;
 using System;
-using System.Data.SqlClient;
 using System.Drawing;
 using System.Windows.Forms;
 
@@ -17,6 +16,7 @@ namespace QuanLyBanHang_GUI
         static readonly Color BorderCol = Color.FromArgb(208, 214, 228);
 
         readonly string _username;
+        readonly NhanVienBUS _bus = new NhanVienBUS();
         TextBox txtCu, txtMoi, txtXacNhan;
         Label lblStrength, lblError;
         Button btnDoi, btnTroVe;
@@ -210,34 +210,19 @@ namespace QuanLyBanHang_GUI
             SetError("");
             if (string.IsNullOrWhiteSpace(txtCu.Text))  { SetError("Nhập mật khẩu hiện tại."); return; }
             if (string.IsNullOrWhiteSpace(txtMoi.Text))  { SetError("Nhập mật khẩu mới."); return; }
-            if (txtMoi.Text.Length < 4)                  { SetError("Mật khẩu mới phải từ 4 ký tự."); return; }
+            if (txtMoi.Text.Length < 6)                  { SetError("Mật khẩu mới phải từ 6 ký tự."); return; }
             if (txtMoi.Text != txtXacNhan.Text)           { SetError("Mật khẩu xác nhận không khớp."); return; }
             if (txtMoi.Text == txtCu.Text)               { SetError("Mật khẩu mới phải khác mật khẩu cũ."); return; }
 
-            using (var c = DBConnection.GetConnection())
+            var (ok, msg) = _bus.ChangePassword(_username, txtCu.Text.Trim(), txtMoi.Text.Trim());
+            if (ok)
             {
-                try
-                {
-                    c.Open();
-                    // Kiểm tra mật khẩu cũ
-                    var chk = new SqlCommand(
-                        "SELECT COUNT(*) FROM NHANVIEN WHERE Username=@u AND Matkhau=@cu", c);
-                    chk.Parameters.AddWithValue("@u",  _username);
-                    chk.Parameters.AddWithValue("@cu", txtCu.Text.Trim());
-                    if ((int)chk.ExecuteScalar() == 0)
-                    { SetError("Mật khẩu hiện tại không đúng."); return; }
-
-                    // Cập nhật
-                    var cmd = new SqlCommand(
-                        "UPDATE NHANVIEN SET Matkhau=@moi WHERE Username=@u", c);
-                    cmd.Parameters.AddWithValue("@moi", txtMoi.Text.Trim());
-                    cmd.Parameters.AddWithValue("@u",   _username);
-                    cmd.ExecuteNonQuery();
-
-                    FormHelper.ShowOK("Đổi mật khẩu thành công!\nVui lòng dùng mật khẩu mới cho lần đăng nhập sau.");
-                    this.Close();
-                }
-                catch (Exception ex) { FormHelper.ShowError(ex.Message); }
+                FormHelper.ShowOK(msg);
+                this.Close();
+            }
+            else
+            {
+                SetError(msg);
             }
         }
     }

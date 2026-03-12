@@ -16,7 +16,7 @@ namespace QuanLyBanHang_GUI
 
             if (result == DialogResult.OK)
             {
-                Application.Run(new Form1(loginForm.TenNhanVien));
+                Application.Run(new Form1(loginForm.LoggedInUser));
             }
         }
     }

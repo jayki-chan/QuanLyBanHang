@@ -8,17 +8,19 @@ namespace QuanLyBanHang_GUI
 {
     public partial class Form1 : Form
     {
-        private string      _tenNhanVien;
-        private string      _username;
-        private NhanVienBUS _busNV = new NhanVienBUS();
+        private string         _tenNhanVien;
+        private string         _username;
+        private NhanVienDTO    _loggedUser;
+        private NhanVienBUS    _busNV = new NhanVienBUS();
         private DashboardPanel _dashboard;
 
-        public Form1(string tenNhanVien = "", string username = "")
+        public Form1(NhanVienDTO user = null)
         {
             InitializeComponent();
             SetMenuIcons();
-            _tenNhanVien = tenNhanVien;
-            _username    = username;
+            _loggedUser  = user;
+            _tenNhanVien = user?.HoTen    ?? "";
+            _username    = user?.Username ?? "";
         }
 
         private void Form1_Load(object sender, EventArgs e)
@@ -32,11 +34,23 @@ namespace QuanLyBanHang_GUI
                 đăngXuấtToolStripMenuItem.Visible  = true;
             }
 
+            ApplyRoleBasedUI();
+
             // Tạo và nhúng Dashboard vào vùng chính
             _dashboard = DashboardPanel.Create();
             this.Controls.Add(_dashboard);
             _dashboard.BringToFront();
             _dashboard.LoadData();
+        }
+
+        /// <summary>
+        /// Ẩn/hiện các menu chỉ dành cho admin.
+        /// </summary>
+        private void ApplyRoleBasedUI()
+        {
+            bool isAdmin = string.Equals(_loggedUser?.Role, "admin", StringComparison.OrdinalIgnoreCase);
+            câuHìnhHệThốngToolStripMenuItem.Visible  = isAdmin;
+            quảnLýNgườiDùngToolStripMenuItem.Visible = isAdmin;
         }
 
         // ── Xem Danh mục ──────────────────────────────────────
@@ -103,7 +117,23 @@ namespace QuanLyBanHang_GUI
         private void đổiMậtKhẩuToolStripMenuItem_Click(object sender, EventArgs e)
             => new DoiMatKhau(_username).ShowDialog();
 
-        private void đăngNhậpToolStripMenuItem_Click(object sender, EventArgs e) { }
+        private void đăngNhậpToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            using (var f = new dangnhap())
+            {
+                if (f.ShowDialog() == DialogResult.OK && f.LoggedInUser != null)
+                {
+                    _loggedUser  = f.LoggedInUser;
+                    _tenNhanVien = _loggedUser.HoTen;
+                    _username    = _loggedUser.Username;
+                    lblStatus.Text = $"  ✔  Đã đăng nhập:  {_tenNhanVien}";
+                    đăngNhậpToolStripMenuItem.Visible = false;
+                    đăngXuấtToolStripMenuItem.Visible = true;
+                    ApplyRoleBasedUI();
+                    _dashboard?.LoadData();
+                }
+            }
+        }
 
         private void đăngXuấtToolStripMenuItem_Click(object sender, EventArgs e)
         {

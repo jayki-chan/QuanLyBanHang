@@ -110,6 +110,65 @@ namespace QuanLyBanHang_DAL
             }
         }
 
+        public bool UpdateUsername(string maNV, string username)
+        {
+            using (var conn = DBConnection.GetConnection())
+            {
+                conn.Open();
+                var cmd = new SqlCommand("UPDATE NHANVIEN SET Username=@u WHERE MaNV=@ma", conn);
+                cmd.Parameters.AddWithValue("@u", username);
+                cmd.Parameters.AddWithValue("@ma", maNV);
+                return cmd.ExecuteNonQuery() > 0;
+            }
+        }
+
+        public bool SetRole(string maNV, string role)
+        {
+            using (var conn = DBConnection.GetConnection())
+            {
+                conn.Open();
+                var cmd = new SqlCommand("UPDATE NHANVIEN SET Role=@r WHERE MaNV=@ma", conn);
+                cmd.Parameters.AddWithValue("@r", role);
+                cmd.Parameters.AddWithValue("@ma", maNV);
+                return cmd.ExecuteNonQuery() > 0;
+            }
+        }
+
+        public bool ResetPassword(string maNV, string newPass)
+        {
+            using (var conn = DBConnection.GetConnection())
+            {
+                conn.Open();
+                var cmd = new SqlCommand("UPDATE NHANVIEN SET Matkhau=@p WHERE MaNV=@ma", conn);
+                cmd.Parameters.AddWithValue("@p", newPass);
+                cmd.Parameters.AddWithValue("@ma", maNV);
+                return cmd.ExecuteNonQuery() > 0;
+            }
+        }
+
+        public bool ChangePasswordByUsername(string username, string newPass)
+        {
+            using (var conn = DBConnection.GetConnection())
+            {
+                conn.Open();
+                var cmd = new SqlCommand("UPDATE NHANVIEN SET Matkhau=@p WHERE Username=@u", conn);
+                cmd.Parameters.AddWithValue("@p", newPass);
+                cmd.Parameters.AddWithValue("@u", username);
+                return cmd.ExecuteNonQuery() > 0;
+            }
+        }
+
+        public bool DeleteAccount(string maNV)
+        {
+            using (var conn = DBConnection.GetConnection())
+            {
+                conn.Open();
+                var cmd = new SqlCommand("UPDATE NHANVIEN SET Username=NULL, Matkhau=NULL WHERE MaNV=@ma", conn);
+                cmd.Parameters.AddWithValue("@ma", maNV);
+                return cmd.ExecuteNonQuery() > 0;
+            }
+        }
+
         static void AddParams(SqlCommand cmd, NhanVienDTO dto, bool includePass)
         {
             cmd.Parameters.AddWithValue("@ma", dto.MaNV);
@@ -137,7 +196,14 @@ namespace QuanLyBanHang_DAL
             Hinh = rd["Hình"].ToString(),
             Username = rd["Username"].ToString(),
             Matkhau = rd["Matkhau"].ToString(),
-            Role = rd.GetOrdinal("Role") >= 0 ? rd["Role"].ToString() : "user"
+            Role = HasColumn(rd, "Role") ? rd["Role"].ToString() : "user"
         };
+
+        static bool HasColumn(SqlDataReader rd, string col)
+        {
+            for (int i = 0; i < rd.FieldCount; i++)
+                if (string.Equals(rd.GetName(i), col, StringComparison.OrdinalIgnoreCase)) return true;
+            return false;
+        }
     }
 }
