@@ -26,10 +26,12 @@ namespace QuanLyBanHang_GUI
         ChartPanel   _chart;
         DataGridView _dgv;
         ComboBox     _cboNam;
+        string       _role = "admin";
 
-        public static DashboardPanel Create()
+        public static DashboardPanel Create(string role = "admin")
         {
             var d = new DashboardPanel();
+            d._role     = (role ?? "admin").ToLower();
             d.Dock      = DockStyle.Fill;
             d.BackColor = BgGray;
             d.BuildUI();
@@ -52,27 +54,43 @@ namespace QuanLyBanHang_GUI
             outer.RowStyles.Add(new RowStyle(SizeType.Percent, 100));   // 5: chart + grid
 
             // ── Row 0 ─────────────────────────────────────────
-            outer.Controls.Add(SectionLbl("Tổng quan hệ thống"), 0, 0);
+            string dashTitle = _role == "warehouse" ? "Tổng quan kho hàng"
+                             : _role == "sales"     ? "Tổng quan bán hàng"
+                             : "Tổng quan hệ thống";
+            outer.Controls.Add(SectionLbl(dashTitle), 0, 0);
 
-            // ── Row 1: Stat cards ─────────────────────────────
+            // ── Row 1: Stat cards (lọc theo role) ─────────────
+            _lblKH = _lblNV = _lblSP = _lblHD = null;
+            var cardDefs = new System.Collections.Generic.List<(string title, IconType icon, Color bg, string tbl)>();
+            if (_role == "admin" || _role == "sales")
+                cardDefs.Add(("Khách Hàng", IconType.User,    StatColors[0], "KH"));
+            if (_role == "admin")
+                cardDefs.Add(("Nhân Viên",  IconType.Users,   StatColors[1], "NV"));
+            if (_role == "admin" || _role == "warehouse")
+                cardDefs.Add(("Sản Phẩm",   IconType.Product, StatColors[2], "SP"));
+            if (_role == "admin" || _role == "sales")
+                cardDefs.Add(("Hóa Đơn",    IconType.Invoice, StatColors[3], "HD"));
+
+            int cardCount = cardDefs.Count;
             var rowStats = new TableLayoutPanel
             {
-                Dock = DockStyle.Fill, ColumnCount = 4, RowCount = 1,
+                Dock = DockStyle.Fill, ColumnCount = cardCount, RowCount = 1,
                 BackColor = Color.Transparent
             };
-            for (int i = 0; i < 4; i++)
-                rowStats.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25));
+            for (int i = 0; i < cardCount; i++)
+                rowStats.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f / cardCount));
 
-            string[]   titles = { "Khách Hàng", "Nhân Viên", "Sản Phẩm", "Hóa Đơn" };
-            IconType[] icons  = { IconType.User, IconType.Users, IconType.Product, IconType.Invoice };
-            Label[]    lbls   = new Label[4];
-            for (int i = 0; i < 4; i++)
+            for (int i = 0; i < cardCount; i++)
             {
-                var card = BuildStatCard(titles[i], icons[i], StatColors[i], out lbls[i]);
-                card.Margin = new Padding(0, 0, i < 3 ? 10 : 0, 0);
+                var def  = cardDefs[i];
+                var card = BuildStatCard(def.title, def.icon, def.bg, out Label lbl);
+                card.Margin = new Padding(0, 0, i < cardCount - 1 ? 10 : 0, 0);
                 rowStats.Controls.Add(card, i, 0);
+                if (def.tbl == "KH") _lblKH = lbl;
+                else if (def.tbl == "NV") _lblNV = lbl;
+                else if (def.tbl == "SP") _lblSP = lbl;
+                else if (def.tbl == "HD") _lblHD = lbl;
             }
-            _lblKH = lbls[0]; _lblNV = lbls[1]; _lblSP = lbls[2]; _lblHD = lbls[3];
             outer.Controls.Add(rowStats, 0, 1);
 
             // ── Row 2: Tiêu đề shortcut ───────────────────────
@@ -84,15 +102,20 @@ namespace QuanLyBanHang_GUI
                 Dock = DockStyle.Fill, FlowDirection = FlowDirection.LeftToRight,
                 WrapContents = false, BackColor = Color.Transparent
             };
-            var shortcuts = new (string text, IconType icon, Color bg, EventHandler click)[]
+            var allShortcuts = new (string text, IconType icon, Color bg, EventHandler click, string[] roles)[]
             {
-                ("Khách Hàng", IconType.User,    Color.FromArgb(30, 90, 160),  (s,e)=>{ new QuanLyKhachHang().ShowDialog(); LoadData(); }),
-                ("Nhân Viên",  IconType.Users,   Color.FromArgb(34, 120, 86),  (s,e)=>{ new QuanLyNhanVien().ShowDialog();  LoadData(); }),
-                ("Sản Phẩm",   IconType.Product, Color.FromArgb(160, 90, 20),  (s,e)=>{ new QuanLySanPham().ShowDialog();   LoadData(); }),
-                ("Hóa Đơn",    IconType.Invoice, Color.FromArgb(140, 30, 80),  (s,e)=>{ new QuanLyHoaDon().ShowDialog();    LoadData(); }),
-                ("BC KH/TP",   IconType.Chart,   Color.FromArgb(70, 50, 140),  (s,e)=>  new BaoCaoKhachHangTheoTP().ShowDialog()),
-                ("BC HĐ/NV",   IconType.Chart,   Color.FromArgb(20, 110, 130), (s,e)=>  new BaoCaoHoaDonTheoNV().ShowDialog()),
+                ("Khách Hàng", IconType.User,    Color.FromArgb(30, 90, 160),  (s,e)=>{ new QuanLyKhachHang().ShowDialog(); LoadData(); }, new[]{"admin","sales"}),
+                ("Nhân Viên",  IconType.Users,   Color.FromArgb(34, 120, 86),  (s,e)=>{ new QuanLyNhanVien().ShowDialog();  LoadData(); }, new[]{"admin"}),
+                ("Sản Phẩm",   IconType.Product, Color.FromArgb(160, 90, 20),  (s,e)=>{ new QuanLySanPham().ShowDialog();   LoadData(); }, new[]{"admin","warehouse"}),
+                ("Hóa Đơn",    IconType.Invoice, Color.FromArgb(140, 30, 80),  (s,e)=>{ new QuanLyHoaDon().ShowDialog();    LoadData(); }, new[]{"admin","sales"}),
+                ("BC KH/TP",   IconType.Chart,   Color.FromArgb(70, 50, 140),  (s,e)=>  new BaoCaoKhachHangTheoTP().ShowDialog(), new[]{"admin","sales"}),
+                ("BC HĐ/NV",   IconType.Chart,   Color.FromArgb(20, 110, 130), (s,e)=>  new BaoCaoHoaDonTheoNV().ShowDialog(), new[]{"admin"}),
             };
+            var filteredSC = new System.Collections.Generic.List<(string text, IconType icon, Color bg, EventHandler click, string[] roles)>();
+            foreach (var sc in allShortcuts)
+                if (System.Array.IndexOf(sc.roles, _role) >= 0)
+                    filteredSC.Add(sc);
+            var shortcuts = filteredSC.ToArray();
             foreach (var sc in shortcuts)
             {
                 var btn = new Button
@@ -120,7 +143,7 @@ namespace QuanLyBanHang_GUI
 
             _lblChartTitle = new Label
             {
-                Text = "Doanh thu theo tháng",
+                Text = _role == "warehouse" ? "Danh sách Sản Phẩm" : "Doanh thu theo tháng",
                 Location = new Point(2, 8), AutoSize = true,
                 Font = new Font("Segoe UI Semibold", 9.5F, FontStyle.Bold),
                 ForeColor = NavBlue
@@ -129,26 +152,31 @@ namespace QuanLyBanHang_GUI
             var lblNam = new Label
             {
                 Text = "Năm:", Location = new Point(200, 10), AutoSize = true,
-                Font = new Font("Segoe UI", 9F), ForeColor = NavBlue
+                Font = new Font("Segoe UI", 9F), ForeColor = NavBlue,
+                Visible = _role != "warehouse"
             };
 
-            _cboNam = new ComboBox
+            _cboNam = _role != "warehouse" ? new ComboBox
             {
                 Location = new Point(238, 6), Size = new Size(80, 24),
                 DropDownStyle = ComboBoxStyle.DropDownList,
                 Font = new Font("Segoe UI Semibold", 9F, FontStyle.Bold),
                 FlatStyle = FlatStyle.Flat
-            };
-            // Thêm 5 năm gần nhất
-            int curYear = DateTime.Now.Year;
-            for (int y = curYear; y >= curYear - 4; y--)
-                _cboNam.Items.Add(y);
-            _cboNam.SelectedIndex = 0;
-            _cboNam.SelectedIndexChanged += (s, e) => LoadChart();
+            } : null;
+
+            if (_cboNam != null)
+            {
+                // Thêm 5 năm gần nhất
+                int curYear = DateTime.Now.Year;
+                for (int y = curYear; y >= curYear - 4; y--)
+                    _cboNam.Items.Add(y);
+                _cboNam.SelectedIndex = 0;
+                _cboNam.SelectedIndexChanged += (s, e) => LoadChart();
+            }
 
             var lblSep = new Label
             {
-                Text = "|   Hóa đơn gần đây",
+                Text = _role == "warehouse" ? "" : "|   Hóa đơn gần đây",
                 Location = new Point(330, 10), AutoSize = true,
                 Font = new Font("Segoe UI Semibold", 9.5F, FontStyle.Bold),
                 ForeColor = NavBlue
@@ -171,31 +199,38 @@ namespace QuanLyBanHang_GUI
 
             pnlChartHdr.Controls.Add(_lblChartTitle);
             pnlChartHdr.Controls.Add(lblNam);
-            pnlChartHdr.Controls.Add(_cboNam);
+            if (_cboNam != null) pnlChartHdr.Controls.Add(_cboNam);
             pnlChartHdr.Controls.Add(lblSep);
             pnlChartHdr.Controls.Add(btnRefresh);
             outer.Controls.Add(pnlChartHdr, 0, 4);
 
-            // ── Row 5: Chart + Grid ───────────────────────────
-            var rowBottom = new TableLayoutPanel
-            {
-                Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1,
-                BackColor = Color.Transparent
-            };
-            rowBottom.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 57));
-            rowBottom.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 43));
-
-            _chart = new ChartPanel { Dock = DockStyle.Fill, BackColor = White, Margin = new Padding(0, 0, 10, 0) };
-
+            // ── Row 5: Chart + Grid (hoặc chỉ Grid cho warehouse) ────────
             _dgv = new DataGridView();
             StyleGrid(_dgv);
-            var dgvCard = new Panel { Dock = DockStyle.Fill, BackColor = White };
             _dgv.Dock = DockStyle.Fill;
+            var dgvCard = new Panel { Dock = DockStyle.Fill, BackColor = White };
             dgvCard.Controls.Add(_dgv);
 
-            rowBottom.Controls.Add(_chart, 0, 0);
-            rowBottom.Controls.Add(dgvCard, 1, 0);
-            outer.Controls.Add(rowBottom, 0, 5);
+            if (_role == "warehouse")
+            {
+                // Warehouse: chỉ hiện danh sách sản phẩm (full width)
+                outer.Controls.Add(dgvCard, 0, 5);
+            }
+            else
+            {
+                // Admin / Sales: biểu đồ doanh thu + bảng hóa đơn gần đây
+                _chart = new ChartPanel { Dock = DockStyle.Fill, BackColor = White, Margin = new Padding(0, 0, 10, 0) };
+                var rowBottom = new TableLayoutPanel
+                {
+                    Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1,
+                    BackColor = Color.Transparent
+                };
+                rowBottom.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 57));
+                rowBottom.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 43));
+                rowBottom.Controls.Add(_chart, 0, 0);
+                rowBottom.Controls.Add(dgvCard, 1, 0);
+                outer.Controls.Add(rowBottom, 0, 5);
+            }
 
             this.Controls.Add(outer);
             this.VisibleChanged += (s, e) => { if (Visible) LoadData(); };
@@ -271,32 +306,50 @@ namespace QuanLyBanHang_GUI
                         if (lbls[i] != null) lbls[i].Text = cmd.ExecuteScalar().ToString();
                     }
 
-                    // Hóa đơn gần đây
-                    var dtRecent = new DataTable();
-                    new SqlDataAdapter(@"
-                        SELECT TOP 8
-                            h.MaHD   AS [Mã HĐ],
-                            k.TenCty AS [Khách Hàng],
-                            CONVERT(varchar, h.NgayLapHD, 103) AS [Ngày lập],
-                            FORMAT(
-                                ISNULL((
-                                    SELECT SUM(ct.SoLuong * sp.DonGia)
-                                    FROM CHITIETHOADON ct
-                                    JOIN SANPHAM sp ON sp.MaSP = ct.MaSP
-                                    WHERE ct.MaHD = h.MaHD
-                                ), 0), N'#,##0'
-                            ) + N' đ' AS [Tổng tiền]
-                        FROM HOADON h
-                        LEFT JOIN KHACHHANG k ON h.MaKH = k.MaKH
-                        ORDER BY h.NgayLapHD DESC, h.MaHD DESC",
-                        conn).Fill(dtRecent);
-                    _dgv.DataSource = dtRecent;
+                    // Hóa đơn gần đây (admin / sales) hoặc Sản phẩm (warehouse)
+                    if (_role == "warehouse")
+                    {
+                        var dtProd = new DataTable();
+                        new SqlDataAdapter(@"
+                            SELECT TOP 15
+                                MaSP       AS [Mã SP],
+                                TenSP      AS [Tên Sản Phẩm],
+                                DonViTinh  AS [Đơn vị],
+                                FORMAT(DonGia, N'#,##0') + N' đ' AS [Đơn giá]
+                            FROM SANPHAM
+                            ORDER BY MaSP",
+                            conn).Fill(dtProd);
+                        _dgv.DataSource = dtProd;
+                    }
+                    else
+                    {
+                        var dtRecent = new DataTable();
+                        new SqlDataAdapter(@"
+                            SELECT TOP 8
+                                h.MaHD   AS [Mã HĐ],
+                                k.TenCty AS [Khách Hàng],
+                                CONVERT(varchar, h.NgayLapHD, 103) AS [Ngày lập],
+                                FORMAT(
+                                    ISNULL((
+                                        SELECT SUM(ct.SoLuong * sp.DonGia)
+                                        FROM CHITIETHOADON ct
+                                        JOIN SANPHAM sp ON sp.MaSP = ct.MaSP
+                                        WHERE ct.MaHD = h.MaHD
+                                    ), 0), N'#,##0'
+                                ) + N' đ' AS [Tổng tiền]
+                            FROM HOADON h
+                            LEFT JOIN KHACHHANG k ON h.MaKH = k.MaKH
+                            ORDER BY h.NgayLapHD DESC, h.MaHD DESC",
+                            conn).Fill(dtRecent);
+                        _dgv.DataSource = dtRecent;
 
-                    // Cập nhật ComboBox năm với các năm có dữ liệu
-                    RefreshYearCombo(conn);
+                        // Cập nhật ComboBox năm với các năm có dữ liệu
+                        RefreshYearCombo(conn);
+                    }
                 }
-                // Load biểu đồ theo năm đang chọn
-                LoadChart();
+                // Load biểu đồ doanh thu (chỉ admin và sales)
+                if (_role != "warehouse")
+                    LoadChart();
             }
             catch (Exception ex)
             {

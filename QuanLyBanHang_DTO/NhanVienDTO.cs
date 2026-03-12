@@ -13,8 +13,26 @@ namespace QuanLyBanHang_DTO
         public string Hinh { get; set; }
         public string Username { get; set; }
         public string Matkhau { get; set; }
-        public string Role { get; set; } = "user";
+        /// <summary>
+        /// Cấp bậc: "admin" | "sales" | "warehouse"
+        /// </summary>
+        public string Role { get; set; } = "sales";
 
         public string HoTen => Ho + " " + Ten;
+
+        /// <summary>Tên hiển thị theo cấp bậc.</summary>
+        public string RoleDisplay
+        {
+            get
+            {
+                switch ((Role ?? "").ToLower())
+                {
+                    case "admin":     return "Quản trị viên";
+                    case "sales":     return "Nhân viên bán hàng";
+                    case "warehouse": return "Nhân viên kho hàng";
+                    default:          return Role ?? "—";
+                }
+            }
+        }
     }
 }

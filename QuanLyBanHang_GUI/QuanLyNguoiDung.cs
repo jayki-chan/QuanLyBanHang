@@ -89,8 +89,8 @@ namespace QuanLyBanHang_GUI
                 DropDownStyle = ComboBoxStyle.DropDownList,
                 Font = new Font("Segoe UI Semibold", 9F, FontStyle.Bold), FlatStyle = FlatStyle.Flat
             };
-            cboQuyen.Items.AddRange(new object[] { "user", "admin" });
-            cboQuyen.SelectedIndex = 0;
+            cboQuyen.Items.AddRange(new object[] { "Quản trị viên", "Nhân viên bán hàng", "Nhân viên kho hàng" });
+            cboQuyen.SelectedIndex = 1; // mặc định: Nhân viên bán hàng
             pnlEdit.Controls.Add(cboQuyen);
             y += 38;
 
@@ -296,7 +296,7 @@ namespace QuanLyBanHang_GUI
                 foreach (var nv in list)
                 {
                     bool hasAcc = !string.IsNullOrEmpty(nv.Username);
-                    dt.Rows.Add(nv.MaNV, nv.HoTen, nv.Username, nv.Role,
+                    dt.Rows.Add(nv.MaNV, nv.HoTen, nv.Username, nv.RoleDisplay,
                         hasAcc ? "Có tài khoản" : "Chưa có tài khoản");
                 }
                 dgv.DataSource = dt;
@@ -318,7 +318,9 @@ namespace QuanLyBanHang_GUI
             txtMaNV.Text  = row.Cells["Mã NV"].Value?.ToString();
             txtHoTen.Text = row.Cells["Họ và Tên"].Value?.ToString();
             txtUser.Text  = row.Cells["Username"].Value?.ToString();
-            cboQuyen.SelectedItem = row.Cells["Quyền"].Value?.ToString() ?? "user";
+            // "Quyền" cột hiển thị tên tiếng Việt, cần map về item có trong combo
+            string roleDisplay = row.Cells["Quyền"].Value?.ToString() ?? "Nhân viên bán hàng";
+            cboQuyen.SelectedItem = cboQuyen.Items.Contains(roleDisplay) ? roleDisplay : "Nhân viên bán hàng";
             txtPassMoi.Clear();
             txtPassXacNhan.Clear();
             lblPassStrength.Text = "";
@@ -356,7 +358,11 @@ namespace QuanLyBanHang_GUI
 
             string maNV     = txtMaNV.Text.Trim();
             string username = txtUser.Text.Trim();
-            string role     = cboQuyen.SelectedItem?.ToString() ?? "user";
+            // Ánh xạ tên hiển thị → giá trị raw
+            string roleDisplay2 = cboQuyen.SelectedItem?.ToString() ?? "Nhân viên bán hàng";
+            string role = roleDisplay2 == "Quản trị viên" ? "admin"
+                        : roleDisplay2 == "Nhân viên kho hàng" ? "warehouse"
+                        : "sales";
 
             var (okU, msgU) = _busNV.UpdateUsername(maNV, username);
             if (!okU) { FormHelper.ShowWarn(msgU); return; }
@@ -401,7 +407,7 @@ namespace QuanLyBanHang_GUI
             txtMaNV.Clear(); txtHoTen.Clear(); txtUser.Clear();
             txtPassMoi.Clear(); txtPassXacNhan.Clear();
             lblPassStrength.Text = "";
-            if (cboQuyen != null) cboQuyen.SelectedIndex = 0;
+            if (cboQuyen != null) cboQuyen.SelectedIndex = 1; // mặc định: Nhân viên bán hàng
         }
     }
 }

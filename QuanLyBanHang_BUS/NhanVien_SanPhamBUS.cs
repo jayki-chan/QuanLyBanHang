@@ -75,8 +75,9 @@ namespace QuanLyBanHang_BUS
 
         public (bool ok, string msg) SetRole(string maNV, string role)
         {
-            if (role != "admin" && role != "user")
-                return (false, "Giá trị quyền không hợp lệ (admin/user).");
+            var valid = new[] { "admin", "sales", "warehouse" };
+            if (!System.Array.Exists(valid, r => r == role))
+                return (false, "Giá trị quyền không hợp lệ (admin / sales / warehouse).");
             return _dal.SetRole(maNV, role)
                 ? (true, "Đã cập nhật quyền thành công!")
                 : (false, "Cập nhật quyền thất bại.");

@@ -123,11 +123,47 @@ IF NOT EXISTS (
 )
 BEGIN
     ALTER TABLE NHANVIEN
-    ADD Role NVARCHAR(20) NOT NULL DEFAULT 'user';
-
+    ADD Role NVARCHAR(20) NOT NULL DEFAULT 'sales';
     PRINT 'Đã thêm cột Role vào bảng NHANVIEN.';
 END
 ELSE
 BEGIN
     PRINT 'Cột Role đã tồn tại, không cần thêm.';
 END
+GO
+
+-- ============================================
+-- UPDATE Role và Mật khẩu 
+-- ============================================
+IF EXISTS (
+    SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE TABLE_NAME = 'NHANVIEN' AND COLUMN_NAME = 'Matkhau'
+      AND CHARACTER_MAXIMUM_LENGTH < 64
+)
+BEGIN
+    ALTER TABLE NHANVIEN ALTER COLUMN Matkhau VARCHAR(64);
+    PRINT 'Đã mở rộng cột Matkhau thành VARCHAR(64).';
+END
+GO
+
+-- Đổi role cũ 'user' thành 'sales' (tương thích ngược)
+UPDATE NHANVIEN SET Role = 'sales' WHERE Role = 'user';
+GO
+
+-- Gán role cụ thể cho từng nhân viên mẫu
+UPDATE NHANVIEN SET Role = 'admin'     WHERE MaNV = 'NV001'; 
+UPDATE NHANVIEN SET Role = 'sales'     WHERE MaNV = 'NV002'; 
+UPDATE NHANVIEN SET Role = 'sales'     WHERE MaNV = 'NV003';
+UPDATE NHANVIEN SET Role = 'warehouse' WHERE MaNV = 'NV004';
+GO
+
+-- ============================================
+-- Hash mật khẩu bằng SHA-256
+-- ============================================
+UPDATE NHANVIEN
+SET Matkhau = '8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92'
+WHERE Matkhau = '123456';
+GO
+
+PRINT 'Cập nhật Role và hash mật khẩu hoàn tất.';
+GO

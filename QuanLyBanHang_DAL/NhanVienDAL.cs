@@ -32,15 +32,27 @@ namespace QuanLyBanHang_DAL
             }
         }
 
+        /// <summary>Hash mật khẩu bằng SHA-256 (lowercase hex).</summary>
+        public static string HashPassword(string password)
+        {
+            using (var sha = System.Security.Cryptography.SHA256.Create())
+            {
+                var bytes = System.Text.Encoding.UTF8.GetBytes(password ?? "");
+                var hash  = sha.ComputeHash(bytes);
+                return BitConverter.ToString(hash).Replace("-", "").ToLower();
+            }
+        }
+
         public NhanVienDTO Login(string username, string matkhau)
         {
             using (var conn = DBConnection.GetConnection())
             {
                 conn.Open();
+                string hashed = HashPassword(matkhau);
                 var cmd = new SqlCommand(
                     "SELECT * FROM NHANVIEN WHERE Username=@u AND Matkhau=@p", conn);
                 cmd.Parameters.AddWithValue("@u", username);
-                cmd.Parameters.AddWithValue("@p", matkhau);
+                cmd.Parameters.AddWithValue("@p", hashed);
                 var rd = cmd.ExecuteReader();
                 return rd.Read() ? Map(rd) : null;
             }
@@ -51,6 +63,9 @@ namespace QuanLyBanHang_DAL
             using (var conn = DBConnection.GetConnection())
             {
                 conn.Open();
+                // Hash mật khẩu trước khi lưu
+                if (!string.IsNullOrEmpty(dto.Matkhau))
+                    dto.Matkhau = HashPassword(dto.Matkhau);
                 var cmd = new SqlCommand(@"
                     INSERT INTO NHANVIEN(MaNV,Ho,Ten,Nu,NgayNV,DiaChi,DienThoai,Hình,Username,Matkhau,Role)
                     VALUES(@ma,@ho,@ten,@nu,@ngay,@dc,@dt,@hinh,@user,@pass,@role)", conn);
@@ -64,6 +79,9 @@ namespace QuanLyBanHang_DAL
             using (var conn = DBConnection.GetConnection())
             {
                 conn.Open();
+                // Hash mật khẩu nếu có cập nhật
+                if (updatePass && !string.IsNullOrEmpty(dto.Matkhau))
+                    dto.Matkhau = HashPassword(dto.Matkhau);
                 string sql = updatePass
                     ? "UPDATE NHANVIEN SET Ho=@ho,Ten=@ten,Nu=@nu,NgayNV=@ngay,DiaChi=@dc,DienThoai=@dt,Hình=@hinh,Username=@user,Matkhau=@pass,Role=@role WHERE MaNV=@ma"
                     : "UPDATE NHANVIEN SET Ho=@ho,Ten=@ten,Nu=@nu,NgayNV=@ngay,DiaChi=@dc,DienThoai=@dt,Hình=@hinh,Username=@user,Role=@role WHERE MaNV=@ma";
@@ -140,7 +158,7 @@ namespace QuanLyBanHang_DAL
             {
                 conn.Open();
                 var cmd = new SqlCommand("UPDATE NHANVIEN SET Matkhau=@p WHERE MaNV=@ma", conn);
-                cmd.Parameters.AddWithValue("@p", newPass);
+                cmd.Parameters.AddWithValue("@p", HashPassword(newPass));
                 cmd.Parameters.AddWithValue("@ma", maNV);
                 return cmd.ExecuteNonQuery() > 0;
             }
@@ -152,7 +170,7 @@ namespace QuanLyBanHang_DAL
             {
                 conn.Open();
                 var cmd = new SqlCommand("UPDATE NHANVIEN SET Matkhau=@p WHERE Username=@u", conn);
-                cmd.Parameters.AddWithValue("@p", newPass);
+                cmd.Parameters.AddWithValue("@p", HashPassword(newPass));
                 cmd.Parameters.AddWithValue("@u", username);
                 return cmd.ExecuteNonQuery() > 0;
             }

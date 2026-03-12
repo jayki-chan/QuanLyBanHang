@@ -29,28 +29,68 @@ namespace QuanLyBanHang_GUI
 
             if (!string.IsNullOrEmpty(_tenNhanVien))
             {
-                lblStatus.Text = $"  ✔  Đã đăng nhập:  {_tenNhanVien}";
                 đăngNhậpToolStripMenuItem.Visible  = false;
                 đăngXuấtToolStripMenuItem.Visible  = true;
             }
 
             ApplyRoleBasedUI();
 
-            // Tạo và nhúng Dashboard vào vùng chính
-            _dashboard = DashboardPanel.Create();
+            // Tạo và nhúng Dashboard vào vùng chính (truyền role để hiển thị đúng cấp bậc)
+            _dashboard = DashboardPanel.Create(_loggedUser?.Role);
             this.Controls.Add(_dashboard);
             _dashboard.BringToFront();
             _dashboard.LoadData();
         }
 
         /// <summary>
-        /// Ẩn/hiện các menu chỉ dành cho admin.
+        /// Phân luồng hiển thị menu theo 3 cấp bậc:
+        ///   admin     -> toàn quyền
+        ///   sales     -> khách hàng, hóa đơn, chi tiết hóa đơn
+        ///   warehouse -> chỉ sản phẩm
         /// </summary>
         private void ApplyRoleBasedUI()
         {
-            bool isAdmin = string.Equals(_loggedUser?.Role, "admin", StringComparison.OrdinalIgnoreCase);
+            string role      = (_loggedUser?.Role ?? "").ToLower();
+            bool isAdmin     = role == "admin";
+            bool isSales     = role == "sales";
+            bool isWarehouse = role == "warehouse";
+
+            // ── Hệ thống ────────────────────────────────────────────────────
             câuHìnhHệThốngToolStripMenuItem.Visible  = isAdmin;
             quảnLýNgườiDùngToolStripMenuItem.Visible = isAdmin;
+
+            // ── Xem Danh mục ────────────────────────────────────────────────
+            danhMụcThànhPhốToolStripMenuItem.Visible          = isAdmin || isSales;
+            danhMụcKháchhàngToolStripMenuItem.Visible         = isAdmin || isSales;
+            danhMụcNhânViênToolStripMenuItem.Visible          = isAdmin;
+            danhMụcSảnPhẩmToolStripMenuItem.Visible          = isAdmin || isWarehouse;
+            danhMụcHóaĐơnToolStripMenuItem.Visible           = isAdmin || isSales;
+            danhMụcChiTiếtHóaĐơnToolStripMenuItem.Visible   = isAdmin || isSales;
+
+            // ── Quản lý Danh mục đơn ────────────────────────────────────────
+            danhMụcThànhPhốToolStripMenuItem1.Visible         = isAdmin || isSales;
+            danhMụcKháchhàngToolStripMenuItem1.Visible        = isAdmin || isSales;
+            danhMụcNhânViênToolStripMenuItem1.Visible         = isAdmin;
+            danhMụcSảnPhẩmToolStripMenuItem1.Visible         = isAdmin || isWarehouse;
+            danhMụcHóaĐơnToolStripMenuItem1.Visible          = isAdmin || isSales;
+            danhMụcChiTiếtHóaĐơnToolStripMenuItem1.Visible  = isAdmin || isSales;
+
+            // ── Báo cáo / Nhóm ──────────────────────────────────────────────
+            kháchhàngTheoThànhPhốToolStripMenuItem.Visible      = isAdmin || isSales;
+            hóaĐơnTheoKháchhàngToolStripMenuItem.Visible        = isAdmin || isSales;
+            hóaĐơnTheoSảnPhẩmToolStripMenuItem.Visible         = isAdmin || isSales;
+            hóaĐơnTheoNhânViênToolStripMenuItem.Visible         = isAdmin;
+            chiTiếtHóaĐơnTheoNhânViênToolStripMenuItem.Visible  = isAdmin;
+            // Ẩn toàn bộ menu Báo cáo đối với warehouse (không có báo cáo liên quan)
+            quảnLýDanhMụcTheoNhómToolStripMenuItem.Visible     = isAdmin || isSales;
+
+            // ── Status bar: hiển thị cấp bậc ────────────────────────────────
+            string roleName = isAdmin     ? "Quản trị viên"
+                            : isSales     ? "Nhân viên bán hàng"
+                            : isWarehouse ? "Nhân viên kho hàng"
+                            : "Người dùng";
+            if (!string.IsNullOrEmpty(_tenNhanVien))
+                lblStatus.Text = $"  ✔  Đã đăng nhập: {_tenNhanVien}  |  Cấp bậc: {roleName}";
         }
 
         // ── Xem Danh mục ──────────────────────────────────────
@@ -107,7 +147,7 @@ namespace QuanLyBanHang_GUI
         private void chiTiếtHóaĐơnTheoNhânViênToolStripMenuItem_Click(object sender, EventArgs e)
             => new BaoCaoChiTietHoaDonTheoNV().ShowDialog();
 
-        // ── Hệ thống ──────────────────────────────────────────
+        // ── Hệ thống ─────────────────────────────────────────
         private void câuHìnhHệThốngToolStripMenuItem_Click(object sender, EventArgs e)
             => new CauHinhHeThong().ShowDialog();
 
@@ -126,11 +166,20 @@ namespace QuanLyBanHang_GUI
                     _loggedUser  = f.LoggedInUser;
                     _tenNhanVien = _loggedUser.HoTen;
                     _username    = _loggedUser.Username;
-                    lblStatus.Text = $"  ✔  Đã đăng nhập:  {_tenNhanVien}";
                     đăngNhậpToolStripMenuItem.Visible = false;
                     đăngXuấtToolStripMenuItem.Visible = true;
                     ApplyRoleBasedUI();
-                    _dashboard?.LoadData();
+
+                    // Tái tạo Dashboard đúng role mới
+                    if (_dashboard != null)
+                    {
+                        this.Controls.Remove(_dashboard);
+                        _dashboard.Dispose();
+                    }
+                    _dashboard = DashboardPanel.Create(_loggedUser?.Role);
+                    this.Controls.Add(_dashboard);
+                    _dashboard.BringToFront();
+                    _dashboard.LoadData();
                 }
             }
         }
