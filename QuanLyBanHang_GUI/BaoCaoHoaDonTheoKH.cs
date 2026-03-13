@@ -9,13 +9,17 @@ namespace QuanLyBanHang_GUI
 {
     /// <summary>
     /// Báo cáo: Danh sách Hóa Đơn theo từng Khách Hàng.
-    /// Có ComboBox lọc KH, hiện tổng số HĐ và tổng tiền.
+    /// Có ComboBox lọc KH, lọc ngày, tìm kiếm nhanh, hiện tổng số HĐ và tổng tiền.
     /// </summary>
     public partial class BaoCaoHoaDonTheoKH : Form
     {
         ComboBox cboKH;
+        DateTimePicker dtpTu, dtpDen;
+        CheckBox chkLocNgay;
+        TextBox txtSearch;
         DataGridView dgv;
         Label lblTong;
+        DataTable _dt;  // lưu dữ liệu gốc để tìm kiếm không load lại DB
 
         static readonly Color NavBlue   = Color.FromArgb(30, 55, 100);
         static readonly Color BgGray    = Color.FromArgb(245, 246, 250);
@@ -46,32 +50,72 @@ namespace QuanLyBanHang_GUI
                 ForeColor = Color.White, TextAlign = ContentAlignment.MiddleCenter
             });
 
+            // Filter: 2 hàng
             var pnlFilter = new Panel
             {
-                BackColor = InputBg, Dock = DockStyle.Top, Height = 56,
-                Padding = new Padding(14, 10, 14, 8)
+                BackColor = InputBg, Dock = DockStyle.Top, Height = 92,
+                Padding = new Padding(14, 8, 14, 8)
             };
             pnlFilter.Paint += (s, e) =>
                 e.Graphics.DrawLine(new Pen(BorderCol), 0, pnlFilter.Height - 1, pnlFilter.Width, pnlFilter.Height - 1);
 
-            pnlFilter.Controls.Add(new Label
-            {
-                Text = "Khách Hàng:", Location = new Point(14, 14),
-                AutoSize = true, Font = new Font("Segoe UI", 9F),
-                ForeColor = Color.FromArgb(50, 70, 110)
-            });
+            // Row 1 — Khách hàng + Tìm kiếm
+            Lbl(pnlFilter, "Khách Hàng:", 14, 14);
             cboKH = new ComboBox
             {
-                Location = new Point(105, 11), Size = new Size(280, 26),
+                Location = new Point(105, 11), Size = new Size(240, 26),
                 Font = new Font("Segoe UI", 9.5F), DropDownStyle = ComboBoxStyle.DropDownList
             };
             cboKH.SelectedIndexChanged += (s, e) => Load_();
             pnlFilter.Controls.Add(cboKH);
 
+            Lbl(pnlFilter, "Tìm:", 358, 14);
+            txtSearch = new TextBox
+            {
+                Location = new Point(388, 11), Size = new Size(200, 26),
+                Font = new Font("Segoe UI", 9.5F)
+            };
+            txtSearch.TextChanged += TxtSearch_TextChanged;
+            pnlFilter.Controls.Add(txtSearch);
+
             var btnReload = MakeBtn("Tải lại", Color.FromArgb(85, 110, 155));
-            btnReload.Location = new Point(398, 10);
+            btnReload.Location = new Point(602, 10);
             btnReload.Click += (s, e) => { LoadComboKH(); Load_(); };
             pnlFilter.Controls.Add(btnReload);
+
+            // Row 2 — Lọc ngày
+            chkLocNgay = new CheckBox
+            {
+                Text = "Lọc theo ngày lập:", Location = new Point(14, 50),
+                AutoSize = true, Font = new Font("Segoe UI", 9F),
+                ForeColor = Color.FromArgb(50, 70, 110)
+            };
+            chkLocNgay.CheckedChanged += (s, e) =>
+            {
+                dtpTu.Enabled = dtpDen.Enabled = chkLocNgay.Checked;
+                Load_();
+            };
+            pnlFilter.Controls.Add(chkLocNgay);
+
+            Lbl(pnlFilter, "Từ:", 195, 52);
+            dtpTu = new DateTimePicker
+            {
+                Location = new Point(215, 48), Size = new Size(130, 24),
+                Font = new Font("Segoe UI", 9.5F), Format = DateTimePickerFormat.Short,
+                Value = DateTime.Today.AddMonths(-1), Enabled = false
+            };
+            dtpTu.ValueChanged += (s, e) => { if (chkLocNgay.Checked) Load_(); };
+            pnlFilter.Controls.Add(dtpTu);
+
+            Lbl(pnlFilter, "Đến:", 358, 52);
+            dtpDen = new DateTimePicker
+            {
+                Location = new Point(383, 48), Size = new Size(130, 24),
+                Font = new Font("Segoe UI", 9.5F), Format = DateTimePickerFormat.Short,
+                Value = DateTime.Today, Enabled = false
+            };
+            dtpDen.ValueChanged += (s, e) => { if (chkLocNgay.Checked) Load_(); };
+            pnlFilter.Controls.Add(dtpDen);
 
             dgv = BuildGrid();
             var pnlGrid = new Panel { Dock = DockStyle.Fill, Padding = new Padding(14, 10, 14, 0), BackColor = BgGray };
@@ -83,7 +127,7 @@ namespace QuanLyBanHang_GUI
 
             lblTong = new Label
             {
-                Dock = DockStyle.Left, Width = 500,
+                Dock = DockStyle.Left, Width = 600,
                 Font = new Font("Segoe UI", 9F), ForeColor = Color.FromArgb(40, 60, 100),
                 TextAlign = ContentAlignment.MiddleLeft, Padding = new Padding(14, 0, 0, 0)
             };
@@ -122,7 +166,14 @@ namespace QuanLyBanHang_GUI
             try
             {
                 string ma = cboKH.SelectedValue?.ToString() ?? "";
-                string where = string.IsNullOrEmpty(ma) ? "" : "WHERE hd.MaKH = @ma";
+                var wheres = new System.Collections.Generic.List<string>();
+                if (!string.IsNullOrEmpty(ma))   wheres.Add("hd.MaKH = @ma");
+                if (chkLocNgay.Checked)
+                {
+                    wheres.Add("hd.NgayLapHD >= @tu");
+                    wheres.Add("hd.NgayLapHD <= @den");
+                }
+                string where = wheres.Count > 0 ? "WHERE " + string.Join(" AND ", wheres) : "";
 
                 using (var c = DBConnection.GetConnection())
                 {
@@ -132,6 +183,11 @@ namespace QuanLyBanHang_GUI
                                nv.Ho + ' ' + nv.Ten                   AS [Nhân Viên],
                                CONVERT(VARCHAR, hd.NgayLapHD,   103)  AS [Ngày Lập],
                                CONVERT(VARCHAR, hd.NgayNhanHang,103)  AS [Ngày Nhận],
+                               ISNULL(
+                                   (SELECT SUM(ct.SoLuong * sp.DonGia)
+                                    FROM CHITIETHOADON ct
+                                    JOIN SANPHAM sp ON ct.MaSP = sp.MaSP
+                                    WHERE ct.MaHD = hd.MaHD), 0) AS [_TongTien],
                                FORMAT(ISNULL(
                                    (SELECT SUM(ct.SoLuong * sp.DonGia)
                                     FROM CHITIETHOADON ct
@@ -144,17 +200,62 @@ namespace QuanLyBanHang_GUI
                         ORDER BY kh.TenCty, hd.MaHD";
 
                     var cmd = new SqlCommand(sql, c);
-                    if (!string.IsNullOrEmpty(ma))
-                        cmd.Parameters.AddWithValue("@ma", ma);
+                    if (!string.IsNullOrEmpty(ma))  cmd.Parameters.AddWithValue("@ma",  ma);
+                    if (chkLocNgay.Checked)
+                    {
+                        cmd.Parameters.AddWithValue("@tu",  dtpTu.Value.Date);
+                        cmd.Parameters.AddWithValue("@den", dtpDen.Value.Date);
+                    }
 
-                    var dt = new DataTable();
-                    new SqlDataAdapter(cmd).Fill(dt);
-                    dgv.DataSource = dt;
-                    lblTong.Text = $"  Tổng số: {dt.Rows.Count} hóa đơn";
+                    _dt = new DataTable();
+                    new SqlDataAdapter(cmd).Fill(_dt);
                 }
+
+                // Áp filter tìm kiếm nếu có
+                ApplySearch();
             }
             catch (Exception ex) { FormHelper.ShowError(ex.Message); }
         }
+
+        void TxtSearch_TextChanged(object s, EventArgs e) => ApplySearch();
+
+        void ApplySearch()
+        {
+            if (_dt == null) return;
+
+            DataTable source;
+            string keyword = txtSearch?.Text?.Trim() ?? "";
+            if (string.IsNullOrEmpty(keyword))
+            {
+                source = _dt;
+            }
+            else
+            {
+                var dv = _dt.DefaultView;
+                dv.RowFilter = $"[Khách Hàng] LIKE '%{keyword.Replace("'", "''")}%'";
+                source = dv.ToTable();
+            }
+
+            dgv.DataSource = source;
+
+            // Ẩn cột số nội bộ
+            if (dgv.Columns["_TongTien"] != null)
+                dgv.Columns["_TongTien"].Visible = false;
+
+            // Tính tổng tiền từ source hiện tại
+            decimal tongTien = 0;
+            foreach (DataRow r in source.Rows)
+                if (decimal.TryParse(r["_TongTien"]?.ToString(), out decimal v)) tongTien += v;
+
+            lblTong.Text = $"  Tổng số: {source.Rows.Count} hóa đơn  |  Tổng tiền: {tongTien:N0} đ";
+        }
+
+        void Lbl(Panel p, string text, int x, int y) =>
+            p.Controls.Add(new Label
+            {
+                Text = text, Location = new Point(x, y), AutoSize = true,
+                Font = new Font("Segoe UI", 9F), ForeColor = Color.FromArgb(50, 70, 110)
+            });
 
         DataGridView BuildGrid()
         {
@@ -173,8 +274,7 @@ namespace QuanLyBanHang_GUI
                 ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Cursor = Cursors.Hand
             };
             b.FlatAppearance.BorderSize = 0;
-            
-            // Gán icon theo text
+
             var iconMap = new System.Collections.Generic.Dictionary<string, IconType>
             {
                 { "Tải lại",       IconType.Reload  },
@@ -196,7 +296,7 @@ namespace QuanLyBanHang_GUI
             foreach (var kv in iconMap)
                 if (cleanText.Contains(kv.Key))
                 {
-                    b.Image        = AppIcons.Get(kv.Value, 16, b.ForeColor == Color.White ? Color.White : Color.FromArgb(48,62,90));
+                    b.Image        = AppIcons.Get(kv.Value, 16, b.ForeColor == Color.White ? Color.White : Color.FromArgb(48, 62, 90));
                     b.ImageAlign   = ContentAlignment.MiddleLeft;
                     b.TextAlign    = ContentAlignment.MiddleCenter;
                     b.TextImageRelation = TextImageRelation.ImageBeforeText;

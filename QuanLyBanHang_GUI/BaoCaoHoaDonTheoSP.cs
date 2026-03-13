@@ -9,11 +9,13 @@ namespace QuanLyBanHang_GUI
 {
     /// <summary>
     /// Báo cáo: Danh sách Hóa Đơn có chứa từng Sản Phẩm.
-    /// Hiển thị số lượng và thành tiền theo từng sản phẩm.
+    /// Lọc sản phẩm, khoảng ngày. Hiện tổng số lượng, tổng thành tiền, đơn giá TB.
     /// </summary>
     public partial class BaoCaoHoaDonTheoSP : Form
     {
         ComboBox cboSP;
+        DateTimePicker dtpTu, dtpDen;
+        CheckBox chkLocNgay;
         DataGridView dgv;
         Label lblTong;
 
@@ -46,14 +48,16 @@ namespace QuanLyBanHang_GUI
                 ForeColor = Color.White, TextAlign = ContentAlignment.MiddleCenter
             });
 
+            // Filter: 2 hàng
             var pnlFilter = new Panel
             {
-                BackColor = InputBg, Dock = DockStyle.Top, Height = 56,
-                Padding = new Padding(14, 10, 14, 8)
+                BackColor = InputBg, Dock = DockStyle.Top, Height = 92,
+                Padding = new Padding(14, 8, 14, 8)
             };
             pnlFilter.Paint += (s, e) =>
                 e.Graphics.DrawLine(new Pen(BorderCol), 0, pnlFilter.Height - 1, pnlFilter.Width, pnlFilter.Height - 1);
 
+            // Row 1 — Sản phẩm
             pnlFilter.Controls.Add(new Label
             {
                 Text = "Sản Phẩm:", Location = new Point(14, 14),
@@ -73,6 +77,40 @@ namespace QuanLyBanHang_GUI
             btnReload.Click += (s, e) => { LoadComboSP(); Load_(); };
             pnlFilter.Controls.Add(btnReload);
 
+            // Row 2 — Lọc ngày
+            chkLocNgay = new CheckBox
+            {
+                Text = "Lọc theo ngày lập:", Location = new Point(14, 50),
+                AutoSize = true, Font = new Font("Segoe UI", 9F),
+                ForeColor = Color.FromArgb(50, 70, 110)
+            };
+            chkLocNgay.CheckedChanged += (s, e) =>
+            {
+                dtpTu.Enabled = dtpDen.Enabled = chkLocNgay.Checked;
+                Load_();
+            };
+            pnlFilter.Controls.Add(chkLocNgay);
+
+            Lbl(pnlFilter, "Từ:", 195, 52);
+            dtpTu = new DateTimePicker
+            {
+                Location = new Point(215, 48), Size = new Size(130, 24),
+                Font = new Font("Segoe UI", 9.5F), Format = DateTimePickerFormat.Short,
+                Value = DateTime.Today.AddMonths(-1), Enabled = false
+            };
+            dtpTu.ValueChanged += (s, e) => { if (chkLocNgay.Checked) Load_(); };
+            pnlFilter.Controls.Add(dtpTu);
+
+            Lbl(pnlFilter, "Đến:", 358, 52);
+            dtpDen = new DateTimePicker
+            {
+                Location = new Point(383, 48), Size = new Size(130, 24),
+                Font = new Font("Segoe UI", 9.5F), Format = DateTimePickerFormat.Short,
+                Value = DateTime.Today, Enabled = false
+            };
+            dtpDen.ValueChanged += (s, e) => { if (chkLocNgay.Checked) Load_(); };
+            pnlFilter.Controls.Add(dtpDen);
+
             dgv = BuildGrid();
             var pnlGrid = new Panel { Dock = DockStyle.Fill, Padding = new Padding(14, 10, 14, 0), BackColor = BgGray };
             pnlGrid.Controls.Add(dgv);
@@ -83,7 +121,7 @@ namespace QuanLyBanHang_GUI
 
             lblTong = new Label
             {
-                Dock = DockStyle.Left, Width = 600,
+                Dock = DockStyle.Left, Width = 800,
                 Font = new Font("Segoe UI", 9F), ForeColor = Color.FromArgb(40, 60, 100),
                 TextAlign = ContentAlignment.MiddleLeft, Padding = new Padding(14, 0, 0, 0)
             };
@@ -122,7 +160,14 @@ namespace QuanLyBanHang_GUI
             try
             {
                 string ma = cboSP.SelectedValue?.ToString() ?? "";
-                string where = string.IsNullOrEmpty(ma) ? "" : "WHERE ct.MaSP = @ma";
+                var wheres = new System.Collections.Generic.List<string>();
+                if (!string.IsNullOrEmpty(ma)) wheres.Add("ct.MaSP = @ma");
+                if (chkLocNgay.Checked)
+                {
+                    wheres.Add("hd.NgayLapHD >= @tu");
+                    wheres.Add("hd.NgayLapHD <= @den");
+                }
+                string where = wheres.Count > 0 ? "WHERE " + string.Join(" AND ", wheres) : "";
 
                 using (var c = DBConnection.GetConnection())
                 {
@@ -133,7 +178,9 @@ namespace QuanLyBanHang_GUI
                                nv.Ho + ' ' + nv.Ten                    AS [Nhân Viên],
                                CONVERT(VARCHAR, hd.NgayLapHD, 103)     AS [Ngày Lập],
                                ct.SoLuong                              AS [Số Lượng],
+                               sp.DonGia                               AS [_DonGia],
                                FORMAT(sp.DonGia, N'N0') + N' đ'        AS [Đơn Giá],
+                               ct.SoLuong * sp.DonGia                  AS [_ThanhTien],
                                FORMAT(ct.SoLuong * sp.DonGia, N'N0') + N' đ'  AS [Thành Tiền]
                         FROM CHITIETHOADON ct
                         JOIN SANPHAM   sp ON ct.MaSP = sp.MaSP
@@ -144,23 +191,51 @@ namespace QuanLyBanHang_GUI
                         ORDER BY sp.TenSP, ct.MaHD";
 
                     var cmd = new SqlCommand(sql, c);
-                    if (!string.IsNullOrEmpty(ma))
-                        cmd.Parameters.AddWithValue("@ma", ma);
+                    if (!string.IsNullOrEmpty(ma)) cmd.Parameters.AddWithValue("@ma", ma);
+                    if (chkLocNgay.Checked)
+                    {
+                        cmd.Parameters.AddWithValue("@tu",  dtpTu.Value.Date);
+                        cmd.Parameters.AddWithValue("@den", dtpDen.Value.Date);
+                    }
 
                     var dt = new DataTable();
                     new SqlDataAdapter(cmd).Fill(dt);
                     dgv.DataSource = dt;
 
-                    // Tính tổng số lượng
-                    long tongSL = 0;
-                    foreach (DataRow r in dt.Rows)
-                        if (long.TryParse(r["Số Lượng"]?.ToString(), out long sl)) tongSL += sl;
+                    // Ẩn cột số nội bộ
+                    if (dgv.Columns["_DonGia"]   != null) dgv.Columns["_DonGia"].Visible   = false;
+                    if (dgv.Columns["_ThanhTien"] != null) dgv.Columns["_ThanhTien"].Visible = false;
 
-                    lblTong.Text = $"  Tổng: {dt.Rows.Count} dòng  |  Tổng số lượng: {tongSL:N0}";
+                    // Tính tổng
+                    long    tongSL    = 0;
+                    decimal tongTT    = 0;
+                    decimal tongDG    = 0;
+                    int     countDG   = 0;
+
+                    foreach (DataRow r in dt.Rows)
+                    {
+                        if (long.TryParse(r["Số Lượng"]?.ToString(), out long sl))    tongSL  += sl;
+                        if (decimal.TryParse(r["_ThanhTien"]?.ToString(), out decimal tt)) tongTT += tt;
+                        if (decimal.TryParse(r["_DonGia"]?.ToString(), out decimal dg))
+                        { tongDG += dg; countDG++; }
+                    }
+
+                    string footer = $"  Tổng: {dt.Rows.Count} dòng  |  Tổng số lượng: {tongSL:N0}  |  Tổng thành tiền: {tongTT:N0} đ";
+                    if (!string.IsNullOrEmpty(ma) && countDG > 0)
+                        footer += $"  |  Đơn giá TB: {(tongDG / countDG):N0} đ";
+
+                    lblTong.Text = footer;
                 }
             }
             catch (Exception ex) { FormHelper.ShowError(ex.Message); }
         }
+
+        void Lbl(Panel p, string text, int x, int y) =>
+            p.Controls.Add(new Label
+            {
+                Text = text, Location = new Point(x, y), AutoSize = true,
+                Font = new Font("Segoe UI", 9F), ForeColor = Color.FromArgb(50, 70, 110)
+            });
 
         DataGridView BuildGrid()
         {
@@ -179,8 +254,7 @@ namespace QuanLyBanHang_GUI
                 ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Cursor = Cursors.Hand
             };
             b.FlatAppearance.BorderSize = 0;
-            
-            // Gán icon theo text
+
             var iconMap = new System.Collections.Generic.Dictionary<string, IconType>
             {
                 { "Tải lại",       IconType.Reload  },
@@ -202,7 +276,7 @@ namespace QuanLyBanHang_GUI
             foreach (var kv in iconMap)
                 if (cleanText.Contains(kv.Key))
                 {
-                    b.Image        = AppIcons.Get(kv.Value, 16, b.ForeColor == Color.White ? Color.White : Color.FromArgb(48,62,90));
+                    b.Image        = AppIcons.Get(kv.Value, 16, b.ForeColor == Color.White ? Color.White : Color.FromArgb(48, 62, 90));
                     b.ImageAlign   = ContentAlignment.MiddleLeft;
                     b.TextAlign    = ContentAlignment.MiddleCenter;
                     b.TextImageRelation = TextImageRelation.ImageBeforeText;

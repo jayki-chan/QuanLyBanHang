@@ -15,6 +15,8 @@ namespace QuanLyBanHang_GUI
     public partial class BaoCaoChiTietHoaDonTheoNV : Form
     {
         ComboBox cboNV;
+        DateTimePicker dtpTu, dtpDen;
+        CheckBox chkLocNgay;
         DataGridView dgvHD;     // master: danh sách hóa đơn
         DataGridView dgvCT;     // detail: chi tiết sản phẩm
         Label lblTongHD, lblTongCT;
@@ -54,12 +56,13 @@ namespace QuanLyBanHang_GUI
             // ── Filter ──────────────────────────────────────
             var pnlFilter = new Panel
             {
-                BackColor = InputBg, Dock = DockStyle.Top, Height = 56,
-                Padding = new Padding(14, 10, 14, 8)
+                BackColor = InputBg, Dock = DockStyle.Top, Height = 92,
+                Padding = new Padding(14, 8, 14, 8)
             };
             pnlFilter.Paint += (s, e) =>
                 e.Graphics.DrawLine(new Pen(BorderCol), 0, pnlFilter.Height - 1, pnlFilter.Width, pnlFilter.Height - 1);
 
+            // Row 1 — Nhân viên
             Lbl(pnlFilter, "Nhân Viên:", 14, 14);
             cboNV = new ComboBox
             {
@@ -73,6 +76,40 @@ namespace QuanLyBanHang_GUI
             btnReload.Location = new Point(394, 10);
             btnReload.Click += (s, e) => { LoadComboNV(); LoadHD(); };
             pnlFilter.Controls.Add(btnReload);
+
+            // Row 2 — Lọc ngày
+            chkLocNgay = new CheckBox
+            {
+                Text = "Lọc theo ngày lập:", Location = new Point(14, 50),
+                AutoSize = true, Font = new Font("Segoe UI", 9F),
+                ForeColor = Color.FromArgb(50, 70, 110)
+            };
+            chkLocNgay.CheckedChanged += (s, e) =>
+            {
+                dtpTu.Enabled = dtpDen.Enabled = chkLocNgay.Checked;
+                LoadHD();
+            };
+            pnlFilter.Controls.Add(chkLocNgay);
+
+            Lbl(pnlFilter, "Từ:", 195, 52);
+            dtpTu = new DateTimePicker
+            {
+                Location = new Point(215, 48), Size = new Size(130, 24),
+                Font = new Font("Segoe UI", 9.5F), Format = DateTimePickerFormat.Short,
+                Value = DateTime.Today.AddMonths(-1), Enabled = false
+            };
+            dtpTu.ValueChanged += (s, e) => { if (chkLocNgay.Checked) LoadHD(); };
+            pnlFilter.Controls.Add(dtpTu);
+
+            Lbl(pnlFilter, "Đến:", 358, 52);
+            dtpDen = new DateTimePicker
+            {
+                Location = new Point(383, 48), Size = new Size(130, 24),
+                Font = new Font("Segoe UI", 9.5F), Format = DateTimePickerFormat.Short,
+                Value = DateTime.Today, Enabled = false
+            };
+            dtpDen.ValueChanged += (s, e) => { if (chkLocNgay.Checked) LoadHD(); };
+            pnlFilter.Controls.Add(dtpDen);
 
             // ── Footer ──────────────────────────────────────
             var pnlFooter = new Panel { BackColor = Color.FromArgb(232, 236, 244), Dock = DockStyle.Bottom, Height = 42 };
@@ -166,7 +203,14 @@ namespace QuanLyBanHang_GUI
             try
             {
                 string ma = cboNV.SelectedValue?.ToString() ?? "";
-                string where = string.IsNullOrEmpty(ma) ? "" : "WHERE hd.MaNV = @ma";
+                var wheres = new System.Collections.Generic.List<string>();
+                if (!string.IsNullOrEmpty(ma)) wheres.Add("hd.MaNV = @ma");
+                if (chkLocNgay.Checked)
+                {
+                    wheres.Add("hd.NgayLapHD >= @tu");
+                    wheres.Add("hd.NgayLapHD <= @den");
+                }
+                string where = wheres.Count > 0 ? "WHERE " + string.Join(" AND ", wheres) : "";
 
                 using (var c = DBConnection.GetConnection())
                 {
@@ -177,6 +221,11 @@ namespace QuanLyBanHang_GUI
                                CONVERT(VARCHAR, hd.NgayLapHD,   103)  AS [Ngày Lập],
                                CONVERT(VARCHAR, hd.NgayNhanHang,103)  AS [Ngày Nhận],
                                (SELECT COUNT(*) FROM CHITIETHOADON WHERE MaHD = hd.MaHD) AS [Số SP],
+                               ISNULL(
+                                   (SELECT SUM(ct.SoLuong * sp.DonGia)
+                                    FROM CHITIETHOADON ct
+                                    JOIN SANPHAM sp ON ct.MaSP = sp.MaSP
+                                    WHERE ct.MaHD = hd.MaHD), 0) AS [_TongTien],
                                FORMAT(ISNULL(
                                    (SELECT SUM(ct.SoLuong * sp.DonGia)
                                     FROM CHITIETHOADON ct
@@ -189,12 +238,27 @@ namespace QuanLyBanHang_GUI
                         ORDER BY nv.Ho, nv.Ten, hd.MaHD";
 
                     var cmd = new SqlCommand(sql, c);
-                    if (!string.IsNullOrEmpty(ma)) cmd.Parameters.AddWithValue("@ma", ma);
+                    if (!string.IsNullOrEmpty(ma))  cmd.Parameters.AddWithValue("@ma",  ma);
+                    if (chkLocNgay.Checked)
+                    {
+                        cmd.Parameters.AddWithValue("@tu",  dtpTu.Value.Date);
+                        cmd.Parameters.AddWithValue("@den", dtpDen.Value.Date);
+                    }
 
                     var dt = new DataTable();
                     new SqlDataAdapter(cmd).Fill(dt);
                     dgvHD.DataSource = dt;
-                    lblTongHD.Text = $"  Tổng số hóa đơn: {dt.Rows.Count}";
+
+                    // Tính tổng tiền từ cột số _TongTien
+                    decimal tongTien = 0;
+                    foreach (DataRow r in dt.Rows)
+                        if (decimal.TryParse(r["_TongTien"]?.ToString(), out decimal v)) tongTien += v;
+
+                    lblTongHD.Text = $"  Tổng số hóa đơn: {dt.Rows.Count}  |  Tổng tiền: {tongTien:N0} đ";
+
+                    // Ẩn cột _TongTien khỏi grid
+                    if (dgvHD.Columns["_TongTien"] != null)
+                        dgvHD.Columns["_TongTien"].Visible = false;
                 }
 
                 // Reset detail
@@ -208,6 +272,12 @@ namespace QuanLyBanHang_GUI
         void DgvHD_CellClick(object s, DataGridViewCellEventArgs e)
         {
             if (e.RowIndex < 0) return;
+
+            // Reset màu tất cả dòng, highlight dòng đang chọn
+            foreach (DataGridViewRow row in dgvHD.Rows)
+                row.DefaultCellStyle.BackColor = Color.Empty;
+            dgvHD.Rows[e.RowIndex].DefaultCellStyle.BackColor = Color.FromArgb(210, 225, 255);
+
             string maHD = dgvHD.Rows[e.RowIndex].Cells[0].Value?.ToString();
             LoadChiTiet(maHD);
         }
