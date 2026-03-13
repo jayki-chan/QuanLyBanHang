@@ -247,6 +247,7 @@ namespace QuanLyBanHang_GUI
 
                     var dt = new DataTable();
                     new SqlDataAdapter(cmd).Fill(dt);
+                    AddStt(dt);
                     dgvHD.DataSource = dt;
 
                     // Tính tổng tiền từ cột số _TongTien
@@ -278,7 +279,7 @@ namespace QuanLyBanHang_GUI
                 row.DefaultCellStyle.BackColor = Color.Empty;
             dgvHD.Rows[e.RowIndex].DefaultCellStyle.BackColor = Color.FromArgb(210, 225, 255);
 
-            string maHD = dgvHD.Rows[e.RowIndex].Cells[0].Value?.ToString();
+            string maHD = dgvHD.Rows[e.RowIndex].Cells["Mã HĐ"].Value?.ToString();
             LoadChiTiet(maHD);
         }
 
@@ -305,6 +306,7 @@ namespace QuanLyBanHang_GUI
                     cmd.Parameters.AddWithValue("@hd", maHD);
                     var dt = new DataTable();
                     new SqlDataAdapter(cmd).Fill(dt);
+                    AddStt(dt);
                     dgvCT.DataSource = dt;
 
                     lblTenHD.Text = $"  Chi Tiết Sản Phẩm — Hóa Đơn: {maHD}";
@@ -328,6 +330,15 @@ namespace QuanLyBanHang_GUI
             g.Dock = DockStyle.Fill;
             g.RowTemplate.Height = rowHeight;
             return g;
+        }
+
+        static void AddStt(DataTable dt)
+        {
+            var col = new DataColumn("STT", typeof(int));
+            dt.Columns.Add(col);
+            dt.Columns["STT"].SetOrdinal(0);
+            for (int i = 0; i < dt.Rows.Count; i++)
+                dt.Rows[i]["STT"] = i + 1;
         }
 
         Button MakeBtn(string text, Color bg)

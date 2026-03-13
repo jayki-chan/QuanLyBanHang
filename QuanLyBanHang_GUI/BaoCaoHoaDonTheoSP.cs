@@ -200,6 +200,7 @@ namespace QuanLyBanHang_GUI
 
                     var dt = new DataTable();
                     new SqlDataAdapter(cmd).Fill(dt);
+                    AddStt(dt);
                     dgv.DataSource = dt;
 
                     // Ẩn cột số nội bộ
@@ -243,6 +244,15 @@ namespace QuanLyBanHang_GUI
             FormHelper.StyleGrid(g);
             g.Dock = DockStyle.Fill;
             return g;
+        }
+
+        static void AddStt(DataTable dt)
+        {
+            var col = new DataColumn("STT", typeof(int));
+            dt.Columns.Add(col);
+            dt.Columns["STT"].SetOrdinal(0);
+            for (int i = 0; i < dt.Rows.Count; i++)
+                dt.Rows[i]["STT"] = i + 1;
         }
 
         Button MakeBtn(string text, Color bg)
