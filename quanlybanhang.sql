@@ -1,4 +1,4 @@
-﻿-- ============================================
+﻿﻿-- ============================================
 -- Script tạo CSDL Quản Lý Bán Hàng
 -- Chạy trong SQL Server Management Studio
 -- ============================================
@@ -194,4 +194,15 @@ CREATE TABLE CHAT_HISTORY_MESSAGE (
 GO
 
 PRINT N'Tạo bảng CHAT_HISTORY_SESSION và CHAT_HISTORY_MESSAGE hoàn tất.';
+GO
+
+IF NOT EXISTS (
+    SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE TABLE_NAME = 'HOADON' AND COLUMN_NAME = 'LoaiHD'
+)
+BEGIN
+    ALTER TABLE HOADON
+    ADD LoaiHD VARCHAR(1) NOT NULL DEFAULT 'X';
+    PRINT 'Đã thêm cột LoaiHD vào bảng HOADON.';
+END
 GO

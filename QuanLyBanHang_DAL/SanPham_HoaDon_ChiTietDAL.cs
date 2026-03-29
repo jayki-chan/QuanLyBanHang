@@ -1,4 +1,4 @@
-﻿using System;
+﻿﻿using System;
 using System.Collections.Generic;
 using System.Data.SqlClient;
 using QuanLyBanHang_DTO;
@@ -147,7 +147,7 @@ namespace QuanLyBanHang_DAL
             {
                 conn.Open();
                 var cmd = new SqlCommand(
-                    "INSERT INTO HOADON(MaHD,MaKH,MaNV,NgayLapHD,NgayNhanHang) VALUES(@ma,@kh,@nv,@ngay,@nhan)", conn);
+                "INSERT INTO HOADON(MaHD,MaKH,MaNV,NgayLapHD,NgayNhanHang,LoaiHD) VALUES(@ma,@kh,@nv,@ngay,@nhan,@loai)", conn);
                 AddParamsHD(cmd, dto);
                 return cmd.ExecuteNonQuery() > 0;
             }
@@ -159,7 +159,7 @@ namespace QuanLyBanHang_DAL
             {
                 conn.Open();
                 var cmd = new SqlCommand(
-                    "UPDATE HOADON SET MaKH=@kh,MaNV=@nv,NgayLapHD=@ngay,NgayNhanHang=@nhan WHERE MaHD=@ma", conn);
+                "UPDATE HOADON SET MaKH=@kh,MaNV=@nv,NgayLapHD=@ngay,NgayNhanHang=@nhan,LoaiHD=@loai WHERE MaHD=@ma", conn);
                 AddParamsHD(cmd, dto);
                 return cmd.ExecuteNonQuery() > 0;
             }
@@ -194,18 +194,27 @@ namespace QuanLyBanHang_DAL
             cmd.Parameters.AddWithValue("@nv", dto.MaNV);
             cmd.Parameters.AddWithValue("@ngay", dto.NgayLapHD);
             cmd.Parameters.AddWithValue("@nhan", dto.NgayNhanHang);
+            
+            var prop = dto.GetType().GetProperty("LoaiHD");
+            cmd.Parameters.AddWithValue("@loai", prop != null ? prop.GetValue(dto) ?? "X" : "X");
         }
 
-        static HoaDonDTO MapHD(SqlDataReader rd) => new HoaDonDTO
+        static HoaDonDTO MapHD(SqlDataReader rd)
         {
-            MaHD = rd["MaHD"].ToString(),
-            MaKH = rd["MaKH"].ToString(),
-            MaNV = rd["MaNV"].ToString(),
-            NgayLapHD = Convert.ToDateTime(rd["NgayLapHD"]),
-            NgayNhanHang = Convert.ToDateTime(rd["NgayNhanHang"]),
-            TenCty = rd["TenCty"].ToString(),
-            HoTenNV = rd["HoTenNV"].ToString()
-        };
+            var dto = new HoaDonDTO
+            {
+                MaHD = rd["MaHD"].ToString(),
+                MaKH = rd["MaKH"].ToString(),
+                MaNV = rd["MaNV"].ToString(),
+                NgayLapHD = Convert.ToDateTime(rd["NgayLapHD"]),
+                NgayNhanHang = Convert.ToDateTime(rd["NgayNhanHang"]),
+                TenCty = rd["TenCty"].ToString(),
+                HoTenNV = rd["HoTenNV"].ToString()
+            };
+            var prop = dto.GetType().GetProperty("LoaiHD");
+            if (prop != null) prop.SetValue(dto, rd["LoaiHD"].ToString());
+            return dto;
+        }
     }
 
     // ══════════════════════════════════════════════════════════

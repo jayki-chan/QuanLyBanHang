@@ -16,8 +16,9 @@ namespace QuanLyBanHang_GUI
         Panel pnlInput;
         DataGridView dgv;
         Button btnReload, btnThem, btnSua, btnLuu, btnHuybo, btnXoa;
-        TextBox txtMa, txtTen;
+        TextBox txtMa, txtTen, txtTimKiem;
         bool _adding;
+        DataTable _dtData;
 
         public QuanLyThanhPho()
         {
@@ -45,7 +46,20 @@ namespace QuanLyBanHang_GUI
             (_, txtMa)  = FormHelper.MakeField(pnlInput, "Mã Thành Phố",  14,  120);
             (_, txtTen) = FormHelper.MakeField(pnlInput, "Tên Thành Phố", 148, 300);
 
+            Panel pnlSearch = new Panel { Dock = DockStyle.Top, Height = 46, BackColor = FormHelper.BgGray };
+            Label lblTimKiem = new Label { Text = "🔍 Tìm kiếm:", Location = new Point(14, 14), AutoSize = true, Font = new Font("Segoe UI", 8.5F), ForeColor = Color.FromArgb(68, 82, 110) };
+            txtTimKiem = new TextBox { Location = new Point(90, 10), Size = new Size(300, 26), Font = new Font("Segoe UI", 9.5F) };
+
+            txtTimKiem.TextChanged += (s, e) => {
+                if (_dtData == null) return;
+                string kw = txtTimKiem.Text.Trim().Replace("'", "''");
+                _dtData.DefaultView.RowFilter = $"[Mã TP] LIKE '%{kw}%' OR [Tên Thành Phố] LIKE '%{kw}%'";
+            };
+            pnlSearch.Controls.Add(lblTimKiem);
+            pnlSearch.Controls.Add(txtTimKiem);
+
             this.Controls.Add(pnlGrid);
+            this.Controls.Add(pnlSearch);
             this.Controls.Add(footer);
             this.Controls.Add(pnlInput);
             this.Controls.Add(hdr);
@@ -65,12 +79,12 @@ namespace QuanLyBanHang_GUI
             try
             {
                 var list = _bus.GetAll();          // ← gọi BUS, không gọi SQL trực tiếp
-                var dt = new DataTable();
-                dt.Columns.Add("Mã TP");
-                dt.Columns.Add("Tên Thành Phố");
+                _dtData = new DataTable();
+                _dtData.Columns.Add("Mã TP");
+                _dtData.Columns.Add("Tên Thành Phố");
                 foreach (var tp in list)
-                    dt.Rows.Add(tp.ThanhPho, tp.TenThanhPho);
-                dgv.DataSource = dt;
+                    _dtData.Rows.Add(tp.ThanhPho, tp.TenThanhPho);
+                dgv.DataSource = _dtData;
                 ClearFields();
             }
             catch (Exception ex) { FormHelper.ShowError(ex.Message); }

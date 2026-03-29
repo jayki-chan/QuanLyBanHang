@@ -12,5 +12,6 @@ namespace QuanLyBanHang_DTO
         // Join display
         public string TenCty { get; set; }
         public string HoTenNV { get; set; }
+        public string LoaiHD { get; set; }
     }
 }
