@@ -17,9 +17,10 @@ namespace QuanLyBanHang_GUI
         Panel pnlInput;
         DataGridView dgv;
         Button btnReload, btnThem, btnSua, btnLuu, btnHuybo, btnXoa;
-        TextBox txtMa, txtTen, txtDiaChi, txtDT;
+        TextBox txtMa, txtTen, txtDiaChi, txtDT, txtTimKiem;
         ComboBox cboTP;
         bool _adding;
+        DataTable _dtData;
 
         public QuanLyKhachHang()
         {
@@ -51,7 +52,19 @@ namespace QuanLyBanHang_GUI
             (_, cboTP)     = FormHelper.MakeCombo(pnlInput, "Thành Phố",   566, 160);
             (_, txtDT)     = FormHelper.MakeField(pnlInput, "Điện Thoại",  740, 130);
 
+            Panel pnlSearch = new Panel { Dock = DockStyle.Top, Height = 46, BackColor = FormHelper.BgGray };
+            Label lblTimKiem = new Label { Text = "🔍 Tìm kiếm (Tên/Mã/SĐT):", Location = new Point(14, 14), AutoSize = true, Font = new Font("Segoe UI", 8.5F), ForeColor = Color.FromArgb(68, 82, 110) };
+            txtTimKiem = new TextBox { Location = new Point(170, 10), Size = new Size(300, 26), Font = new Font("Segoe UI", 9.5F) };
+            txtTimKiem.TextChanged += (s, e) => {
+                if (_dtData == null) return;
+                string kw = txtTimKiem.Text.Trim().Replace("'", "''");
+                _dtData.DefaultView.RowFilter = $"[Mã KH] LIKE '%{kw}%' OR [Tên Công Ty] LIKE '%{kw}%' OR [Điện Thoại] LIKE '%{kw}%' OR [Địa Chỉ] LIKE '%{kw}%'";
+            };
+            pnlSearch.Controls.Add(lblTimKiem);
+            pnlSearch.Controls.Add(txtTimKiem);
+
             this.Controls.Add(pnlGrid);
+            this.Controls.Add(pnlSearch);
             this.Controls.Add(footer);
             this.Controls.Add(pnlInput);
             this.Controls.Add(hdr);
@@ -85,18 +98,18 @@ namespace QuanLyBanHang_GUI
             try
             {
                 var list = _bus.GetAll();        // ← BUS
-                var dt = new DataTable();
-                dt.Columns.Add("Mã KH");
-                dt.Columns.Add("Tên Công Ty");
-                dt.Columns.Add("Địa Chỉ");
-                dt.Columns.Add("Thành Phố");
-                dt.Columns.Add("Điện Thoại");
-                dt.Columns.Add("_MaTP");         // cột ẩn để FillRow
+                _dtData = new DataTable();
+                _dtData.Columns.Add("Mã KH");
+                _dtData.Columns.Add("Tên Công Ty");
+                _dtData.Columns.Add("Địa Chỉ");
+                _dtData.Columns.Add("Thành Phố");
+                _dtData.Columns.Add("Điện Thoại");
+                _dtData.Columns.Add("_MaTP");         // cột ẩn để FillRow
 
                 foreach (var kh in list)
-                    dt.Rows.Add(kh.MaKH, kh.TenCty, kh.DiaChi, kh.TenThanhPho, kh.DienThoai, kh.ThanhPho);
+                    _dtData.Rows.Add(kh.MaKH, kh.TenCty, kh.DiaChi, kh.TenThanhPho, kh.DienThoai, kh.ThanhPho);
 
-                dgv.DataSource = dt;
+                dgv.DataSource = _dtData;
                 if (dgv.Columns.Contains("_MaTP")) dgv.Columns["_MaTP"].Visible = false;
                 ClearFields();
             }

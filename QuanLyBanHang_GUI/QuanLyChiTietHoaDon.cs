@@ -19,14 +19,19 @@ namespace QuanLyBanHang_GUI
         DataGridView dgv;
         Button btnReload, btnThem, btnSua, btnLuu, btnHuybo, btnXoa;
         ComboBox cboHD, cboSP;
-        TextBox txtSoLuong;
+        TextBox txtSoLuong, txtTimKiem;
         Label lblTong;
         bool _adding;
+        DataTable _dtData;
 
-        public QuanLyChiTietHoaDon()
+        public QuanLyChiTietHoaDon(string preselectMaHD = null)
         {
             BuildUI();
             LoadCombos();
+            
+            if (!string.IsNullOrEmpty(preselectMaHD))
+                cboHD.SelectedValue = preselectMaHD;
+                
             FormHelper.SetEditMode(false, pnlInput, btnLuu, btnHuybo, btnThem, btnSua, btnXoa, btnReload);
             Load_();
         }
@@ -64,10 +69,35 @@ namespace QuanLyBanHang_GUI
 
             txtSoLuong.KeyPress += (s, e) => { if (!char.IsDigit(e.KeyChar) && !char.IsControl(e.KeyChar)) e.Handled = true; };
             cboHD.SelectedIndexChanged += (s, e) => { Load_(); UpdateTong(); };
-            cboSP.SelectedIndexChanged += (s, e) => UpdateTong();
             txtSoLuong.TextChanged     += (s, e) => UpdateTong();
 
+            cboSP.SelectedIndexChanged += (s, e) => {
+                UpdateTong();
+                // Tự động điền số lượng hiện tại khi đang Sửa và chọn sang Sản phẩm khác
+                if (!_adding && pnlInput.Enabled && _dtData != null)
+                {
+                    string maSP = cboSP.SelectedValue?.ToString();
+                    if (!string.IsNullOrEmpty(maSP))
+                    {
+                        DataRow[] rows = _dtData.Select($"[Mã SP] = '{maSP.Replace("'", "''")}'");
+                        if (rows.Length > 0) txtSoLuong.Text = rows[0]["Số Lượng"].ToString();
+                    }
+                }
+            };
+
+            Panel pnlSearch = new Panel { Dock = DockStyle.Top, Height = 46, BackColor = FormHelper.BgGray };
+            Label lblTimKiem = new Label { Text = "🔍 Tìm kiếm (Mã/Tên SP):", Location = new Point(14, 14), AutoSize = true, Font = new Font("Segoe UI", 8.5F), ForeColor = Color.FromArgb(68, 82, 110) };
+            txtTimKiem = new TextBox { Location = new Point(160, 10), Size = new Size(300, 26), Font = new Font("Segoe UI", 9.5F) };
+            txtTimKiem.TextChanged += (s, e) => {
+                if (_dtData == null) return;
+                string kw = txtTimKiem.Text.Trim().Replace("'", "''");
+                _dtData.DefaultView.RowFilter = $"[Mã SP] LIKE '%{kw}%' OR [Tên Sản Phẩm] LIKE '%{kw}%'";
+            };
+            pnlSearch.Controls.Add(lblTimKiem);
+            pnlSearch.Controls.Add(txtTimKiem);
+
             this.Controls.Add(pnlGrid);
+            this.Controls.Add(pnlSearch);
             this.Controls.Add(footer);
             this.Controls.Add(pnlInput);
             this.Controls.Add(hdr);
@@ -88,14 +118,20 @@ namespace QuanLyBanHang_GUI
             dtHD.Columns.Add("MaHD"); dtHD.Columns.Add("HT");
             foreach (var hd in _busHD.GetAll())    // ← BUS
                 dtHD.Rows.Add(hd.MaHD, hd.MaHD + " — " + hd.TenCty + " (" + hd.NgayLapHD.ToString("dd/MM/yy") + ")");
-            cboHD.DataSource = dtHD; cboHD.DisplayMember = "HT"; cboHD.ValueMember = "MaHD";
+            
+            cboHD.ValueMember = "MaHD"; 
+            cboHD.DisplayMember = "HT"; 
+            cboHD.DataSource = dtHD;
 
             // ComboBox SanPham
             var dtSP = new DataTable();
             dtSP.Columns.Add("MaSP"); dtSP.Columns.Add("HT");
             foreach (var sp in _busSP.GetAll())    // ← BUS
                 dtSP.Rows.Add(sp.MaSP, sp.MaSP + " — " + sp.TenSP + " (" + sp.DonGia.ToString("N0") + " đ)");
-            cboSP.DataSource = dtSP; cboSP.DisplayMember = "HT"; cboSP.ValueMember = "MaSP";
+            
+            cboSP.ValueMember = "MaSP"; 
+            cboSP.DisplayMember = "HT"; 
+            cboSP.DataSource = dtSP;
         }
 
         // ── Load theo HĐ đang chọn ───────────────────────────
@@ -107,19 +143,19 @@ namespace QuanLyBanHang_GUI
                 if (string.IsNullOrEmpty(maHD)) return;
 
                 var list = _bus.GetByHoaDon(maHD);  // ← BUS
-                var dt = new DataTable();
-                dt.Columns.Add("Mã SP"); dt.Columns.Add("Tên Sản Phẩm");
-                dt.Columns.Add("ĐVT"); dt.Columns.Add("Đơn Giá"); dt.Columns.Add("Số Lượng"); dt.Columns.Add("Thành Tiền");
+                _dtData = new DataTable();
+                _dtData.Columns.Add("Mã SP"); _dtData.Columns.Add("Tên Sản Phẩm");
+                _dtData.Columns.Add("ĐVT"); _dtData.Columns.Add("Đơn Giá"); _dtData.Columns.Add("Số Lượng"); _dtData.Columns.Add("Thành Tiền");
                 decimal tongHD = 0;
                 foreach (var ct in list)
                 {
-                    dt.Rows.Add(ct.MaSP, ct.TenSP, ct.DonViTinh,
+                    _dtData.Rows.Add(ct.MaSP, ct.TenSP, ct.DonViTinh,
                         ct.DonGia.ToString("N0") + " đ",
                         ct.SoLuong,
                         ct.ThanhTien.ToString("N0") + " đ");
                     tongHD += ct.ThanhTien;
                 }
-                dgv.DataSource = dt;
+                dgv.DataSource = _dtData;
                 lblTong.Text = $"Tổng HĐ: {tongHD:N0} đ";
             }
             catch (Exception ex) { FormHelper.ShowError(ex.Message); }
@@ -141,11 +177,17 @@ namespace QuanLyBanHang_GUI
 
         void StartEdit()
         {
-            if (dgv.CurrentRow == null) { FormHelper.ShowWarn("Chọn dòng cần sửa."); return; }
             _adding = false;
-            FillRow(dgv.CurrentRow.Index);
-            cboSP.Enabled = false;   // không đổi mã SP khi sửa
             FormHelper.SetEditMode(true, pnlInput, btnLuu, btnHuybo, btnThem, btnSua, btnXoa, btnReload);
+            
+            // Tự động load số lượng cho SP đang được chọn sẵn trên combo
+            string maSP = cboSP.SelectedValue?.ToString();
+            if (_dtData != null && !string.IsNullOrEmpty(maSP))
+            {
+                DataRow[] rows = _dtData.Select($"[Mã SP] = '{maSP.Replace("'", "''")}'");
+                if (rows.Length > 0) txtSoLuong.Text = rows[0]["Số Lượng"].ToString();
+            }
+
             txtSoLuong.Focus();
         }
 
@@ -171,7 +213,6 @@ namespace QuanLyBanHang_GUI
                 FormHelper.ShowOK(msg);
                 Load_();
                 FormHelper.SetEditMode(false, pnlInput, btnLuu, btnHuybo, btnThem, btnSua, btnXoa, btnReload);
-                cboSP.Enabled = true;
             }
             else FormHelper.ShowWarn(msg);
         }

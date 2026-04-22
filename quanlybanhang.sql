@@ -1,4 +1,4 @@
-﻿-- ============================================
+﻿﻿-- ============================================
 -- Script tạo CSDL Quản Lý Bán Hàng
 -- Chạy trong SQL Server Management Studio
 -- ============================================
@@ -196,6 +196,7 @@ GO
 PRINT N'Tạo bảng CHAT_HISTORY_SESSION và CHAT_HISTORY_MESSAGE hoàn tất.';
 GO
 
+<<<<<<< HEAD
 -- ============================================================
 -- 1. CONSTRAINT: CHECK / UNIQUE 
 -- ============================================================
@@ -656,3 +657,15 @@ GO
 
 PRINT N'Hoàn tất: Role/Phân quyền + Auditing + Constraint + 7 Trigger + Procedure CRUD + View báo cáo.';
 GO
+=======
+IF NOT EXISTS (
+    SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE TABLE_NAME = 'HOADON' AND COLUMN_NAME = 'LoaiHD'
+)
+BEGIN
+    ALTER TABLE HOADON
+    ADD LoaiHD VARCHAR(1) NOT NULL DEFAULT 'X';
+    PRINT 'Đã thêm cột LoaiHD vào bảng HOADON.';
+END
+GO
+>>>>>>> 5be181ed1c770177526e4e61e48a25a557ea3b65

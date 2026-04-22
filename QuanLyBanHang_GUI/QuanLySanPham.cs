@@ -16,8 +16,9 @@ namespace QuanLyBanHang_GUI
         Panel pnlInput;
         DataGridView dgv;
         Button btnReload, btnThem, btnSua, btnLuu, btnHuybo, btnXoa;
-        TextBox txtMa, txtTen, txtDVT, txtGia;
+        TextBox txtMa, txtTen, txtDVT, txtGia, txtTimKiem;
         bool _adding;
+        DataTable _dtData;
 
         public QuanLySanPham()
         {
@@ -51,7 +52,19 @@ namespace QuanLyBanHang_GUI
             txtGia.KeyPress += (s, e) => { if (!char.IsDigit(e.KeyChar) && !char.IsControl(e.KeyChar)) e.Handled = true; };
             txtGia.Leave    += (s, e) => { if (decimal.TryParse(txtGia.Text.Replace(",", ""), out decimal v)) txtGia.Text = v.ToString("N0"); };
 
+            Panel pnlSearch = new Panel { Dock = DockStyle.Top, Height = 46, BackColor = FormHelper.BgGray };
+            Label lblTimKiem = new Label { Text = "🔍 Tìm kiếm (Mã/Tên SP):", Location = new Point(14, 14), AutoSize = true, Font = new Font("Segoe UI", 8.5F), ForeColor = Color.FromArgb(68, 82, 110) };
+            txtTimKiem = new TextBox { Location = new Point(160, 10), Size = new Size(300, 26), Font = new Font("Segoe UI", 9.5F) };
+            txtTimKiem.TextChanged += (s, e) => {
+                if (_dtData == null) return;
+                string kw = txtTimKiem.Text.Trim().Replace("'", "''");
+                _dtData.DefaultView.RowFilter = $"[Mã SP] LIKE '%{kw}%' OR [Tên Sản Phẩm] LIKE '%{kw}%'";
+            };
+            pnlSearch.Controls.Add(lblTimKiem);
+            pnlSearch.Controls.Add(txtTimKiem);
+
             this.Controls.Add(pnlGrid);
+            this.Controls.Add(pnlSearch);
             this.Controls.Add(footer);
             this.Controls.Add(pnlInput);
             this.Controls.Add(hdr);
@@ -71,14 +84,14 @@ namespace QuanLyBanHang_GUI
             try
             {
                 var list = _bus.GetAll();        // ← BUS
-                var dt = new DataTable();
-                dt.Columns.Add("Mã SP");
-                dt.Columns.Add("Tên Sản Phẩm");
-                dt.Columns.Add("ĐVT");
-                dt.Columns.Add("Đơn Giá");
+                _dtData = new DataTable();
+                _dtData.Columns.Add("Mã SP");
+                _dtData.Columns.Add("Tên Sản Phẩm");
+                _dtData.Columns.Add("ĐVT");
+                _dtData.Columns.Add("Đơn Giá");
                 foreach (var sp in list)
-                    dt.Rows.Add(sp.MaSP, sp.TenSP, sp.DonViTinh, sp.DonGia.ToString("N0") + " đ");
-                dgv.DataSource = dt;
+                    _dtData.Rows.Add(sp.MaSP, sp.TenSP, sp.DonViTinh, sp.DonGia.ToString("N0") + " đ");
+                dgv.DataSource = _dtData;
                 ClearFields();
             }
             catch (Exception ex) { FormHelper.ShowError(ex.Message); }
